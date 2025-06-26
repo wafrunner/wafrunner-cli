@@ -1,8 +1,16 @@
+# Environments
+.env
+.venv/
+venv/
+ENV/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
+*.egg
+*.egg-info/
 
 # C extensions
 *.so
@@ -23,10 +31,9 @@ var/
 wheels/
 pip-wheel-metadata/
 share/python-wheels/
-*.egg-info/
 .installed.cfg
-*.egg
 MANIFEST
+*.whl
 
 # PyInstaller
 *.manifest
@@ -44,37 +51,6 @@ htmlcov/
 .coverage.*
 .cache
 .pytest_cache/
-
-# Local development files
-.local/
-# Python-specific ignores
-
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.pyc
-*.pyd
-*.pyo
-*.egg
-*.egg-info/
-
-# C extensions
-*.so
-
-# Distribution / packaging
-dist/
-build/
-*.whl
-
-# Virtual environment
-.venv/
-venv/
-env/
-
-# Testing and coverage
-.pytest_cache/
-.coverage
-htmlcov/
-.tox/
 
 # IDEs and editors
 .idea/                  # PyCharm
@@ -104,9 +80,3 @@ docs/_build/            # Sphinx build directory
 # Miscellaneous
 *.bak
 *.tmp
-
-# Environments
-.env
-.venv/
-venv/
-ENV/
