@@ -34,6 +34,9 @@ MAX_RETRIES = 3  # Maximum number of retries for a failed NIST API request
 API_RETRY_DELAY = 5 # Initial delay for retries (exponential backoff)
 CHUNK_DAYS = 120 # Number of days per chunk for NIST API requests (max allowed by NIST is 120)
 
+# Constants for upload process
+UPDATE_DELAY_SECONDS = 0.1
+
 
 
 def get_default_cve_path() -> Path:
@@ -42,6 +45,33 @@ def get_default_cve_path() -> Path:
     cve_path = config_dir / "data" / "cve-sources"
     return cve_path
 
+
+def get_uploaded_cves_tracking_path() -> Path:
+    """Returns the path for the CVE upload tracking file."""
+    config_dir = Path.home() / ".wafrunner"
+    tracking_path = config_dir / "data" / "uploaded_cves.json"
+    return tracking_path
+
+
+def load_uploaded_cves_tracking() -> Dict[str, str]:
+    """Loads the CVE upload tracking data from the JSON file."""
+    tracking_path = get_uploaded_cves_tracking_path()
+    if not tracking_path.exists():
+        return {}
+    try:
+        with open(tracking_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, IOError) as e:
+        print(f"[yellow]Warning: Could not load CVE upload tracking file {tracking_path}: {e}. Starting fresh.[/yellow]")
+        return {}
+
+
+def save_uploaded_cves_tracking(tracking_data: Dict[str, str]):
+    """Saves the CVE upload tracking data to the JSON file."""
+    tracking_path = get_uploaded_cves_tracking_path()
+    tracking_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(tracking_path, "w", encoding="utf-8") as f:
+        json.dump(tracking_data, f, indent=2)
 
 def isoformat_utc(dt: datetime, start: bool = True) -> str:
     """
@@ -227,7 +257,7 @@ def generate_date_chunks_for_year(year: int, chunk_days: int = CHUNK_DAYS):
     return chunks
 
 
-def process_record(api_client: ApiClient, vuln_source_data: Dict[str, Any]) -> str:
+def process_record(api_client: ApiClient, vuln_source_data: Dict[str, Any], force_upload: bool, uploaded_cves_tracking: Dict[str, str]) -> str:
     """
     Processes a single CVE record: checks existence, transforms, and uploads/updates.
     Returns a string outcome: 'created', 'updated', 'skipped_*', 'error_*'.
@@ -236,6 +266,12 @@ def process_record(api_client: ApiClient, vuln_source_data: Dict[str, Any]) -> s
     cve_id = cve_info.get("id")
     if not cve_id:
         return "skipped_missing_cveid"
+    
+    nist_last_modified = cve_info.get("lastModified")
+
+    # Check if already uploaded and unmodified, unless --force is used
+    if not force_upload and cve_id in uploaded_cves_tracking and uploaded_cves_tracking[cve_id] == nist_last_modified:
+        return "skipped_unmodified"
 
     try:
         # 1. Check if CVE exists in wafrunner
@@ -263,9 +299,12 @@ def process_record(api_client: ApiClient, vuln_source_data: Dict[str, Any]) -> s
                 f"/vulnerability_records/{existing_vulnID}", json=payload
             )
             if response.status_code == 200:
+                uploaded_cves_tracking[cve_id] = nist_last_modified
+                time.sleep(UPDATE_DELAY_SECONDS)  # Delay on successful update
                 return "updated"
             else:
                 print(
+                    # Only print first 100 chars of response text to avoid overly long messages
                     f"[red]Update for {cve_id} ({existing_vulnID}) failed: {response.status_code} {response.text[:100]}[/red]"
                 )
                 return "error_update_failed"
@@ -273,11 +312,16 @@ def process_record(api_client: ApiClient, vuln_source_data: Dict[str, Any]) -> s
             # CREATE
             response = api_client.post("/vulnerability_records", json=payload)
             if response.status_code in [200, 201]:
+                uploaded_cves_tracking[cve_id] = nist_last_modified  # Track on successful create
+                time.sleep(UPDATE_DELAY_SECONDS)  # Delay on successful create
                 return "created"
             elif response.status_code == 409:  # Conflict, already exists
+                print(f"[yellow]Warning: Create for CVE {cve_id} failed with 409 Conflict. Record likely created by another process. Treating as success.[/yellow]")
+                uploaded_cves_tracking[cve_id] = nist_last_modified # Treat as success, so track it
                 return "skipped_conflict"
             else:
                 print(
+                    # Only print first 100 chars of response text to avoid overly long messages
                     f"[red]Create for {cve_id} failed: {response.status_code} {response.text[:100]}[/red]"
                 )
                 return "error_create_failed"
@@ -379,6 +423,12 @@ def upload(
     max_workers: int = typer.Option(
         20, "--max-workers", help="Max number of parallel workers for API calls."
     ),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        "-f",
+        help="Force upload of all CVEs, even if they appear unmodified.",
+    ),
 ):
     """
     Upload CVEs from local JSON files to the wafrunner system.
@@ -402,26 +452,38 @@ def upload(
             print(f"[yellow]No JSON files found in {input_dir}.[/yellow]")
             raise typer.Exit()
 
+        uploaded_cves_tracking = load_uploaded_cves_tracking()
         all_records = []
         print("Reading and parsing JSON files...")
         for file_path in json_files:
             try:
-                with open(file_path, "r") as f:
+                # Use utf-8 encoding as specified in the reference script
+                with open(file_path, "r", encoding='utf-8') as f:
                     data = json.load(f)
-                records_in_file = data.get("vulnerabilities", [])
-                for record in records_in_file:
-                    if "cve" in record:
-                        all_records.append(record)
+                
+                vulnerabilities_in_file = []
+                if isinstance(data, dict) and 'cve' in data and 'vulnerabilities' not in data:
+                    # Single CVE object at root, like {"cve": {...}}
+                    vulnerabilities_in_file = [data]
+                elif isinstance(data, dict) and 'vulnerabilities' in data:
+                    # NVD JSON format: {"vulnerabilities": [...]}
+                    vulnerabilities_in_file = data['vulnerabilities']
+                elif isinstance(data, list):
+                    # Just a list of CVE objects
+                    vulnerabilities_in_file = data
+                else:
+                    print(f"[yellow]Warning: Unrecognized JSON structure in {Path(file_path).name}. Skipping file.[/yellow]")
+                    continue # Skip this file if structure is not recognized
+
+                valid_records = [v for v in vulnerabilities_in_file if isinstance(v, dict)]
+                num_invalid_records = len(vulnerabilities_in_file) - len(valid_records)
+                if num_invalid_records > 0:
+                    print(f"[yellow]Warning: Skipped {num_invalid_records} invalid records (not dictionaries) in {Path(file_path).name}.[/yellow]")
+                all_records.extend(valid_records)
             except (json.JSONDecodeError, IOError) as e:
                 print(f"[yellow]Warning: Could not read or parse {file_path}: {e}[/yellow]")
-
-        if not all_records:
-            print("[bold red]No valid CVE records found in any JSON file.[/bold red]")
-            raise typer.Exit()
-
         total_records = len(all_records)
         print(f"Found {total_records} CVE records to process.")
-
         outcomes = Counter()
         with Progress(
             SpinnerColumn(),
@@ -435,7 +497,7 @@ def upload(
 
             with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                 future_to_cve = {
-                    executor.submit(process_record, api_client, record): record
+                    executor.submit(process_record, api_client, record, force, uploaded_cves_tracking): record
                     for record in all_records
                 }
 
@@ -450,6 +512,7 @@ def upload(
         print(f"Successfully Created: [green]{outcomes['created']}[/green]")
         print(f"Successfully Updated: [cyan]{outcomes['updated']}[/cyan]")
         print(f"Skipped (Conflict): [yellow]{outcomes['skipped_conflict']}[/yellow]")
+        print(f"Skipped (Unmodified): [yellow]{outcomes['skipped_unmodified']}[/yellow]")
         print(f"Skipped (No CVE ID): [yellow]{outcomes['skipped_missing_cveid']}[/yellow]")
         total_errors = sum(v for k, v in outcomes.items() if k.startswith("error_"))
         print(f"Errors: [bold red]{total_errors}[/bold red]")
@@ -458,6 +521,8 @@ def upload(
             print("  - Create Failed:", outcomes["error_create_failed"])
             print("  - Update Failed:", outcomes["error_update_failed"])
             print("  - Record Processing Error:", outcomes["error_processing_record"])
+        
+        save_uploaded_cves_tracking(uploaded_cves_tracking)
 
     except AuthenticationError as e:
         print(f"[bold red]API Error:[/bold red] {e}")
