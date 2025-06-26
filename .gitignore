@@ -1,0 +1,112 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+.pytest_cache/
+
+# Local development files
+.local/
+# Python-specific ignores
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.pyc
+*.pyd
+*.pyo
+*.egg
+*.egg-info/
+
+# C extensions
+*.so
+
+# Distribution / packaging
+dist/
+build/
+*.whl
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Testing and coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# IDEs and editors
+.idea/                  # PyCharm
+.vscode/                # VS Code
+*.sublime-project       # Sublime Text
+*.sublime-workspace
+*.swp                   # Vim swap files
+
+# OS-specific files
+.DS_Store               # macOS
+Thumbs.db               # Windows
+
+# Logs and databases
+*.log
+*.sqlite3
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+# Documentation
+site/                   # MkDocs build directory
+docs/_build/            # Sphinx build directory
+
+# Local development
+.local/
+
+# Miscellaneous
+*.bak
+*.tmp
+
+# Environments
+.env
+.venv/
+venv/
+ENV/
