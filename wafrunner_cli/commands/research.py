@@ -70,8 +70,16 @@ def github(
 
         print(f"\n[bold green]✔ Successfully triggered GitHub search for {len(identifiers)} identifier(s).[/bold green]")
 
-    except (AuthenticationError, httpx.RequestError) as e:
-        # ApiClient prints detailed error messages for these exceptions.
+    except AuthenticationError as e:
+        print(f"[bold red]API Error:[/bold red] {e}")
+        if "403" in str(e):
+            print(
+                "[bold yellow]Hint:[/bold yellow] A '403 Forbidden' error means the server understands your request but refuses to authorize it. "
+                "Please check if your API token has the required permissions (scopes) to access this endpoint."
+            )
+        raise typer.Exit(code=1)
+    except httpx.RequestError:
+        # ApiClient prints detailed network errors, so we just exit.
         raise typer.Exit(code=1)
 
 

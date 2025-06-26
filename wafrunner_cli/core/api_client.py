@@ -28,7 +28,7 @@ class ApiClient:
         self._client = httpx.Client(
             base_url=self.base_url,
             headers={
-                "Authorization": f"Bearer {token}",
+                "x-api-key": token,
                 "Accept": "application/json",
             },
             timeout=30.0,
@@ -61,7 +61,21 @@ class ApiClient:
                 response.raise_for_status()  # Raise for other 4xx client errors
                 return response
 
-            except httpx.Timeout as e:
+            except httpx.HTTPStatusError as e:
+                url = e.request.url
+                if e.response.status_code == 401:
+                    raise AuthenticationError(
+                        f"Authentication failed (401 Unauthorized) for URL: {url}. "
+                        "The API token is likely invalid or expired."
+                    ) from e
+                if e.response.status_code == 403:
+                    raise AuthenticationError(
+                        f"Authorization failed (403 Forbidden) for URL: {url}. "
+                        "The API token is valid, but lacks permissions for this resource."
+                    ) from e
+                # Re-raise other status errors that are not handled by our retry logic.
+                raise
+            except httpx.TimeoutException as e:
                 print(f"[bold red]Request Timeout:[/bold red] The request to {e.request.url!r} timed out.")
             except httpx.RequestError as e:
                 print(f"[bold red]Network Error:[/bold red] An error occurred while requesting {e.request.url!r}.")

@@ -26,6 +26,9 @@ class ConfigManager:
             return None
         try:
             self._config.read(self.config_file)
-            return self._config.get("auth", "api_token", fallback=None)
+            token = self._config.get("auth", "api_token", fallback=None)
+            if token:
+                return token.strip()
+            return None
         except (configparser.Error, IOError):
             return None
