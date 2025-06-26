@@ -35,6 +35,8 @@ API_RETRY_DELAY = 5 # Initial delay for retries (exponential backoff)
 CHUNK_DAYS = 120 # Number of days per chunk for NIST API requests (max allowed by NIST is 120)
 
 # Constants for upload process
+RETRY_GET_ON_CONFLICT = True  # Retry GET if 409 occurs during POST
+MAX_GET_RETRIES_ON_CONFLICT = 1  # Number of times to retry GET
 UPDATE_DELAY_SECONDS = 0.1
 
 
@@ -158,6 +160,7 @@ def download_cves_for_range(
                     if total_results == 0:
                         print(f"[yellow]No CVEs found for this range ({start_date_str} to {end_date_str}).[/yellow]")
                         overall_progress.update(range_task, total=0)  # Set total to 0 for this task
+                        download_status = "complete"
                         break  # No CVEs, exit inner loop
                     overall_progress.update(range_task, total=total_results)
 
@@ -258,7 +261,7 @@ def generate_date_chunks_for_year(year: int, chunk_days: int = CHUNK_DAYS):
 
 
 def process_record(api_client: ApiClient, vuln_source_data: Dict[str, Any], force_upload: bool, uploaded_cves_tracking: Dict[str, str]) -> str:
-    """
+    """ 
     Processes a single CVE record: checks existence, transforms, and uploads/updates.
     Returns a string outcome: 'created', 'updated', 'skipped_*', 'error_*'.
     """
@@ -308,13 +311,35 @@ def process_record(api_client: ApiClient, vuln_source_data: Dict[str, Any], forc
                     f"[red]Update for {cve_id} ({existing_vulnID}) failed: {response.status_code} {response.text[:100]}[/red]"
                 )
                 return "error_update_failed"
-        else:
+        else: # Trying to create
             # CREATE
             response = api_client.post("/vulnerability_records", json=payload)
             if response.status_code in [200, 201]:
                 uploaded_cves_tracking[cve_id] = nist_last_modified  # Track on successful create
                 time.sleep(UPDATE_DELAY_SECONDS)  # Delay on successful create
                 return "created"
+            elif response.status_code == 409 and RETRY_GET_ON_CONFLICT:  # Conflict, try GET again
+                print(f"[yellow]Warning: Create for CVE {cve_id} failed with 409 Conflict. Retrying GET to see if record exists...[/yellow]")
+                # Retry the GET to check if it now exists
+                existing_records = api_client.get("/vulnerability_records", params={"cveID": cve_id})
+                if existing_records and isinstance(existing_records, list) and len(existing_records) > 0:
+                    existing_vulnID = existing_records[0].get("vulnID")
+                    print(f"[green]CVE {cve_id} now found after retry. Updating record {existing_vulnID}.[/green]")
+                    # Update the record using PUT
+                    response = api_client.put(f"/vulnerability_records/{existing_vulnID}", json=payload)
+                    if response.status_code == 200:
+                        uploaded_cves_tracking[cve_id] = nist_last_modified
+                        time.sleep(UPDATE_DELAY_SECONDS)  # Delay on successful update
+                        return "updated"
+                    else:
+                        print(
+                            f"[red]Update for {cve_id} ({existing_vulnID}) failed: {response.status_code} {response.text[:100]}[/red]"
+                        )
+                        return "error_update_failed"
+                else:
+                    print(f"[yellow]Warning: Create for CVE {cve_id} still failing after get retry. Treating as success.[/yellow]")
+                    uploaded_cves_tracking[cve_id] = nist_last_modified # Treat as success, so track it
+                    return "skipped_conflict"
             elif response.status_code == 409:  # Conflict, already exists
                 print(f"[yellow]Warning: Create for CVE {cve_id} failed with 409 Conflict. Record likely created by another process. Treating as success.[/yellow]")
                 uploaded_cves_tracking[cve_id] = nist_last_modified # Treat as success, so track it

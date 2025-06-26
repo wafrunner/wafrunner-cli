@@ -100,8 +100,8 @@ def test_download_no_update_file_exists_invalid(
 
     assert result.exit_code == 0
     assert "exists but is incomplete or has errors. Re-downloading." in result.stdout
-    # For 2023, generate_date_chunks_for_year creates 3 chunks (365/120 = 3.04)
-    assert mock_download_cves_for_range.call_count == 3
+    # For 2023, generate_date_chunks_for_year creates 4 chunks (365 / 120 = 3.04)
+    assert mock_download_cves_for_range.call_count == 4
     mock_path_methods[1].assert_called_once() # mkdir should still be called for the default path
 
 def test_download_update_file_exists_valid(
@@ -121,7 +121,7 @@ def test_download_update_file_exists_valid(
     assert "Data will be saved to" in result.stdout # Initial message
     assert "Update mode: True" in result.stdout
     assert "Re-downloading." in result.stdout # Because update is True
-    assert mock_download_cves_for_range.call_count == 3
+    assert mock_download_cves_for_range.call_count == 4
     mock_path_methods[1].assert_called_once() # mkdir should still be called for the default path
 
 def test_download_no_update_file_does_not_exist(
@@ -139,7 +139,7 @@ def test_download_no_update_file_does_not_exist(
     assert result.exit_code == 0
     assert "Data will be saved to" in result.stdout # Initial message
     assert "Update mode: False" in result.stdout
-    assert mock_download_cves_for_range.call_count == 3
+    assert mock_download_cves_for_range.call_count == 4
     mock_path_methods[1].assert_called_once() # mkdir should still be called for the default path
 
 def test_download_update_file_does_not_exist(
@@ -157,7 +157,7 @@ def test_download_update_file_does_not_exist(
     assert result.exit_code == 0
     assert "Data will be saved to" in result.stdout # Initial message
     assert "Update mode: True" in result.stdout
-    assert mock_download_cves_for_range.call_count == 3
+    assert mock_download_cves_for_range.call_count == 4
     mock_path_methods[1].assert_called_once() # mkdir should still be called for the default path
 
 # --- Test cases for the is_error_file function itself ---
@@ -165,35 +165,35 @@ def test_download_update_file_does_not_exist(
 def test_is_error_file_missing_file(mocker):
     """Test is_error_file with a non-existent file."""
     mock_open = mocker.patch("builtins.open", side_effect=FileNotFoundError)
-    mock_print = mocker.patch("rich.print")
+    mock_print = mocker.patch("wafrunner_cli.commands.cve.print")
     assert is_error_file(Path("non_existent.json")) is True
     mock_print.assert_called_with(mocker.ANY, "Error reading or decoding non_existent.json: [Errno 2] No such file or directory. Flagging for re-download.")
 
 def test_is_error_file_invalid_json(mocker):
     """Test is_error_file with a file containing invalid JSON."""
     mock_open = mocker.patch("builtins.open", mocker.mock_open(read_data="invalid json"))
-    mock_print = mocker.patch("rich.print")
+    mock_print = mocker.patch("wafrunner_cli.commands.cve.print")
     assert is_error_file(Path("invalid.json")) is True
     mock_print.assert_called_with(mocker.ANY, "Error reading or decoding invalid.json: Expecting value: line 1 column 1 (char 0). Flagging for re-download.")
 
 def test_is_error_file_incomplete_status(mocker):
     """Test is_error_file with a file having 'incomplete' download_status."""
     mock_open = mocker.patch("builtins.open", mocker.mock_open(read_data=json.dumps({"download_status": "incomplete", "totalResults": 10, "vulnerabilities": []})))
-    mock_print = mocker.patch("rich.print")
+    mock_print = mocker.patch("wafrunner_cli.commands.cve.print")
     assert is_error_file(Path("incomplete.json")) is True
     mock_print.assert_called_with(mocker.ANY, "File incomplete.json has download status 'incomplete'. Flagging for re-download.")
 
 def test_is_error_file_total_mismatch(mocker):
     """Test is_error_file with totalResults not matching actual vulnerabilities count."""
     mock_open = mocker.patch("builtins.open", mocker.mock_open(read_data=json.dumps({"download_status": "complete", "totalResults": 10, "vulnerabilities": [{"cve": {"id": "CVE-2023-1234"}}]})))
-    mock_print = mocker.patch("rich.print")
+    mock_print = mocker.patch("wafrunner_cli.commands.cve.print")
     assert is_error_file(Path("mismatch.json")) is True
     mock_print.assert_called_with(mocker.ANY, "File mismatch.json has totalResults=10 but contains 1 vulnerabilities. Flagging for re-download.")
 
 def test_is_error_file_empty_results(mocker):
     """Test is_error_file with totalResults 0 and empty vulnerabilities."""
     mock_open = mocker.patch("builtins.open", mocker.mock_open(read_data=json.dumps({"totalResults": 0, "vulnerabilities": []})))
-    mock_print = mocker.patch("rich.print")
+    mock_print = mocker.patch("wafrunner_cli.commands.cve.print")
     assert is_error_file(Path("empty.json")) is True
     # No warning for this specific case, as it's a valid "no results" scenario that still needs re-checking
     mock_print.assert_not_called() 
@@ -201,6 +201,6 @@ def test_is_error_file_empty_results(mocker):
 def test_is_error_file_valid_file(mocker):
     """Test is_error_file with a valid, complete file."""
     mock_open = mocker.patch("builtins.open", mocker.mock_open(read_data=json.dumps({"download_status": "complete", "totalResults": 1, "vulnerabilities": [{"cve": {"id": "CVE-2023-1234"}}]})))
-    mock_print = mocker.patch("rich.print")
+    mock_print = mocker.patch("wafrunner_cli.commands.cve.print")
     assert is_error_file(Path("valid.json")) is False
     mock_print.assert_not_called()

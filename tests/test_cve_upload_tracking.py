@@ -246,7 +246,9 @@ def test_upload_api_error_not_tracked(
     cve_id = "CVE-2023-0006"
     last_modified = "2023-01-01T00:00:00.000Z"
     mock_api_client.get.return_value = None
-    mock_api_client.post.return_value = mocker.Mock(status_code=500)  # API error
+    mock_api_client.post.return_value = mocker.Mock(
+        status_code=500, text="Internal Server Error"
+    )  # API error
     mocker.patch(
         "glob.glob",
         return_value=[Path("/tmp/cve_data.json")],
