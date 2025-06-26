@@ -59,7 +59,7 @@ def mock_time_sleep(mocker):
 @pytest.fixture
 def mock_rich_print(mocker):
     """Mocks rich.print."""
-    return mocker.patch("rich.print")
+    return mocker.patch("wafrunner_cli.commands.cve.print")
 
 # --- Test Data ---
 TEST_START_DATE = "2023-01-01T00:00:00.000Z"

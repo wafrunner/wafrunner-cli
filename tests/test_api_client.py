@@ -78,7 +78,9 @@ def test_api_client_post_success(mocker):
         "wafrunner_cli.core.api_client.ConfigManager.load_token",
         return_value="fake-token",
     )
-    mock_response = httpx.Response(201, json={"status": "created"})
+    mock_response = httpx.Response(
+        201, json={"status": "created"}, request=httpx.Request("POST", "")
+        )
     mock_request_method = mocker.patch(
         "wafrunner_cli.core.api_client.httpx.Client.request",
         return_value=mock_response,
@@ -90,7 +92,7 @@ def test_api_client_post_success(mocker):
     result = api_client.post("/create-endpoint", json=post_data)
 
     # Assert
-    assert result == {"status": "created"}
+    assert result.json() == {"status": "created"}
     mock_request_method.assert_called_once_with(
         "POST", "/create-endpoint", params=None, json=post_data
     )
@@ -109,8 +111,12 @@ def test_api_client_retries_on_server_error(mocker, status_code):
     mock_sleep = mocker.patch("wafrunner_cli.core.api_client.time.sleep")
 
     # Simulate a 500 error, then a 200 success
-    response_error = httpx.Response(status_code, json={"detail": "Server Error"})
-    response_200 = httpx.Response(200, json={"data": "finally success"})
+    response_error = httpx.Response(
+        status_code, json={"detail": "Server Error"}, request=httpx.Request("GET", "")
+        )
+    response_200 = httpx.Response(
+        200, json={"data": "finally success"}, request=httpx.Request("GET", "")
+        )
 
     mock_request_method = mocker.patch(
         "wafrunner_cli.core.api_client.httpx.Client.request",
@@ -147,3 +153,5 @@ def test_api_client_fails_after_all_retries(mocker):
     with pytest.raises(httpx.RequestError, match="API request failed after 3 retries"):
         api_client = ApiClient()
         api_client.get("/non-existent-endpoint")
+
+        
