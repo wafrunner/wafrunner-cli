@@ -4,6 +4,7 @@ from pathlib import Path
 import json
 import time
 from datetime import datetime
+from typing import Any, Dict
 
 from wafrunner_cli.commands.cve import app as cve_app
 from wafrunner_cli.core.exceptions import AuthenticationError
