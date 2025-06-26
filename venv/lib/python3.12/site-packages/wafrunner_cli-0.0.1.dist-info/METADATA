@@ -1,0 +1,17 @@
+Metadata-Version: 2.4
+Name: wafrunner-cli
+Version: 0.0.1
+Summary: wafrunner Command Line Interface
+Author-email: Sam <sam@example.com>
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: typer[all]
+Requires-Dist: httpx
+Provides-Extra: test
+Requires-Dist: pytest; extra == "test"
+Requires-Dist: pytest-mock; extra == "test"
+Dynamic: license-file
+
+# wafrunner-cli
+wafrunner Command Line Interface

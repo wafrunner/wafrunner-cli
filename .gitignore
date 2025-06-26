@@ -1,0 +1,4 @@
+# Local-only content
+# This directory is for files that should not be in version control,
+# such as local development notes or context for coding assistants.
+.local/

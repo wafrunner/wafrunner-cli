@@ -1,0 +1,6 @@
+typer[all]
+httpx
+
+[test]
+pytest
+pytest-mock
