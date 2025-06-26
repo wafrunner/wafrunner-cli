@@ -14,7 +14,6 @@ requires-python = ">=3.8"
 dependencies = [
     "typer[all]",
     "httpx",
-    "prompt-toolkit",
 ]
 
 [project.scripts]

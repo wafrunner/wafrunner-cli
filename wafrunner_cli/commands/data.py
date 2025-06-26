@@ -50,29 +50,23 @@ def get_graph(
         graph_data = api_client.get("/data/graph", params=params)
 
         if output_dir:
-            try:
-                output_dir.mkdir(parents=True, exist_ok=True)
-                file_path = output_dir / f"{identifier}_graph.json"
-                with open(file_path, "w") as f:
-                    json.dump(graph_data, f, indent=2)
-                print(f"[green]✔ Graph saved successfully to {file_path}[/green]")
-            except IOError as e:
-                print(f"[bold red]File Error:[/bold red] Could not write to file. {e}")
-                raise typer.Exit(code=1)
+            output_dir.mkdir(parents=True, exist_ok=True)
+            file_path = output_dir / f"{identifier}_graph.json"
+            with open(file_path, "w") as f:
+                json.dump(graph_data, f, indent=2)
+            print(f"[green]✔ Graph saved successfully to {file_path}[/green]")
         else:
             print("[bold green]Downloaded Graph Data:[/bold green]")
             print(graph_data)
 
     except AuthenticationError as e:
-        print(f"[bold red]API Error:[/bold red] {e}")
-        if "403" in str(e):
-            print(
-                "[bold yellow]Hint:[/bold yellow] A '403 Forbidden' error means the server understands your request but refuses to authorize it. "
-                "Please check if your API token has the required permissions (scopes) to access this endpoint."
-            )
+        print(f"[bold red]Authentication Error:[/bold red] {e}")
         raise typer.Exit(code=1)
-    except httpx.RequestError:
+    except (httpx.RequestError, IOError) as e:
         # ApiClient prints detailed network errors, so we just exit.
+        # For IOError, we print the error.
+        if isinstance(e, IOError):
+            print(f"[bold red]File Error:[/bold red] {e}")
         raise typer.Exit(code=1)
 
 
