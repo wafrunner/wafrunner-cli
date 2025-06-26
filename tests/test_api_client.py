@@ -69,9 +69,37 @@ def test_api_client_get_not_found_returns_none(mocker):
     assert result is None
 
 
-def test_api_client_retries_on_server_error(mocker):
+def test_api_client_post_success(mocker):
     """
-    Verify that the client retries on a 500 error and eventually succeeds.
+    Verify that a successful POST request returns the expected JSON data.
+    """
+    # Arrange
+    mocker.patch(
+        "wafrunner_cli.core.api_client.ConfigManager.load_token",
+        return_value="fake-token",
+    )
+    mock_response = httpx.Response(201, json={"status": "created"})
+    mock_request_method = mocker.patch(
+        "wafrunner_cli.core.api_client.httpx.Client.request",
+        return_value=mock_response,
+    )
+    post_data = {"key": "value"}
+
+    # Act
+    api_client = ApiClient()
+    result = api_client.post("/create-endpoint", json=post_data)
+
+    # Assert
+    assert result == {"status": "created"}
+    mock_request_method.assert_called_once_with(
+        "POST", "/create-endpoint", params=None, json=post_data
+    )
+
+
+@pytest.mark.parametrize("status_code", [500, 502, 503, 504])
+def test_api_client_retries_on_server_error(mocker, status_code):
+    """
+    Verify that the client retries on any 5xx server error and eventually succeeds.
     """
     mocker.patch(
         "wafrunner_cli.core.api_client.ConfigManager.load_token",
@@ -81,12 +109,12 @@ def test_api_client_retries_on_server_error(mocker):
     mock_sleep = mocker.patch("wafrunner_cli.core.api_client.time.sleep")
 
     # Simulate a 500 error, then a 200 success
-    response_500 = httpx.Response(500, json={"detail": "Internal Server Error"})
+    response_error = httpx.Response(status_code, json={"detail": "Server Error"})
     response_200 = httpx.Response(200, json={"data": "finally success"})
 
     mock_request_method = mocker.patch(
         "wafrunner_cli.core.api_client.httpx.Client.request",
-        side_effect=[response_500, response_200],
+        side_effect=[response_error, response_200],
     )
 
     # Act
