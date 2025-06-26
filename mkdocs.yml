@@ -1,8 +1,8 @@
 site_name: wafrunner-cli
 site_description: "wafrunner Command Line Interface"
 
-repo_name: wafrunner/wafrunner-cli
-repo_url: https://github.com/wafrunner/wafrunner-cli
+# TODO: Update with your actual repository URL for a link to appear in the header.
+# repo_url: https://github.com/your-username/wafrunner-cli
 
 theme:
   name: material
@@ -10,7 +10,6 @@ theme:
     - navigation.tabs
     - content.code.annotate
     - content.code.copy
-  logo: img/logo.svg # Assuming your logo is docs/img/logo.svg
   palette:
     # Palette toggle for light vs dark mode
     - scheme: default
@@ -21,23 +20,8 @@ theme:
       toggle:
         icon: material/toggle-switch
         name: Switch to light mode
-  # Optional: Set the default color scheme to dark mode (slate)
-  # If you want the site to load in dark mode by default for new users
-  # primary: deep purple
-  # accent: indigo
 
 docs_dir: docs
 
-plugins:
-  - mkdocstrings
-  - search
-
 nav:
   - Home: index.md
-  - API Reference: reference.md
-  - Usage:
-    - Basic Commands: usage/basic-commands.md
-    - Research Commands: usage/research-commands.md
-    - Configuring the CLI: usage/configure-cli.md
-    - Data Commands: usage/data-commands.md
-    - CVE Commands: usage/cve-commands.md

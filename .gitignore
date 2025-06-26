@@ -1,1 +1,54 @@
+# Python-specific ignores
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.pyc
+*.pyd
+*.pyo
+*.egg
+*.egg-info/
+
+# Distribution / packaging
+dist/
+build/
+*.whl
+
+# Virtual environment
 .venv/
+venv/
+env/
+
+# Testing and coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# IDEs and editors
+.idea/                  # PyCharm
+.vscode/                # VS Code
+*.sublime-project       # Sublime Text
+*.sublime-workspace
+*.swp                   # Vim swap files
+
+# OS-specific files
+.DS_Store               # macOS
+Thumbs.db               # Windows
+
+# Logs and databases
+*.log
+*.sqlite3
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+# Documentation
+site/                   # MkDocs build directory
+docs/_build/            # Sphinx build directory
+
+# Local development
+.local/
+
+# Miscellaneous
+*.bak
+*.tmp
