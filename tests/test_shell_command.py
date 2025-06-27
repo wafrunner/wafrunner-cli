@@ -2,6 +2,8 @@ import pytest
 import typer
 from unittest.mock import MagicMock
 
+from prompt_toolkit.completion import FuzzyWordCompleter
+
 # Functions and objects to test
 from wafrunner_cli.commands.shell import _get_typer_completions, run_shell
 
@@ -45,40 +47,42 @@ def mock_path_methods(mocker, tmp_path):
 
 def test_get_typer_completions():
     """
-    Tests that the completion dictionary is built correctly from a nested Typer app,
-    and that the 'shell' command is excluded.
+    Tests that the completion dictionary is built correctly, handles commands
+    with and without options, and excludes the 'shell' command.
     """
     # --- Arrange: Create a complex, nested Typer app structure ---
     sub_group_app = typer.Typer()
     @sub_group_app.command("subcmd2")
-    def subcmd2(): pass
+    def subcmd2(): pass  # Command with no options
 
     group_app = typer.Typer()
     @group_app.command("subcmd1")
-    def subcmd1(): pass
+    def subcmd1(force: bool = typer.Option(False, "--force")): pass  # Command with an option
     group_app.add_typer(sub_group_app, name="group2")
 
     main_app = typer.Typer()
     @main_app.command("cmd1")
-    def cmd1(): pass
+    def cmd1(): pass  # Command with no options
     @main_app.command("shell")
-    def shell(): pass # This command should be excluded
+    def shell(): pass  # This command should be excluded
     main_app.add_typer(group_app, name="group1")
 
     # --- Act ---
     completions = _get_typer_completions(main_app)
 
     # --- Assert ---
-    expected_completions = {
-        "cmd1": None,
-        "group1": {
-            "subcmd1": None,
-            "group2": {
-                "subcmd2": None
-            }
-        }
-    }
-    assert completions == expected_completions
+    # 1. Check structure for command groups
+    assert isinstance(completions["group1"], dict)
+    assert isinstance(completions["group1"]["group2"], dict)
+
+    # 2. Check commands without options return an empty dict
+    assert completions["cmd1"] == {}
+    assert completions["group1"]["group2"]["subcmd2"] == {}
+
+    # 3. Check command with an option returns a completer instance
+    assert isinstance(completions["group1"]["subcmd1"], FuzzyWordCompleter)
+
+    # 4. Check that the shell command is excluded
     assert "shell" not in completions
 
 
