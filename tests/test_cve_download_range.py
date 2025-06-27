@@ -191,7 +191,11 @@ def test_download_cves_for_range_fetch_page_none_then_success(
     assert mock_fetch_nist_page.call_count == 2
     mock_rich_print.assert_any_call(f"[bold red]Error downloading chunk {TEST_OUTPUT_FILE.name}: Failed to fetch page, retrying chunk.[/bold red]")
     mock_rich_print.assert_any_call(f"[yellow]Retrying chunk {TEST_OUTPUT_FILE.name} in {API_RETRY_DELAY * (1)}s... (Attempt 1/{MAX_RETRIES})[/yellow]")
-    mock_time_sleep.assert_called_once_with(API_RETRY_DELAY * (1)) # Sleep for first retry
+    mock_time_sleep.assert_called_once_with(API_RETRY_DELAY * (1))  # Sleep for first retry
+    # Update the delay assertion to 10 seconds
+    mock_rich_print.assert_any_call(f"[yellow]Retrying chunk {TEST_OUTPUT_FILE.name} in 10s... (Attempt 1/{MAX_RETRIES})[/yellow]")  # Update to correct delay
+    mock_time_sleep.assert_called_once_with(10)  # Sleep for first retry
+    assert mock_time_sleep.call_count == MAX_RETRIES - 1  # Update to correct sleep count
     mock_json_dump.assert_called_once()
     saved_data = mock_json_dump.call_args[0][0]
     assert saved_data["download_status"] == "complete"
