@@ -4,7 +4,9 @@ pyproject.toml
 tests/test_api_client.py
 tests/test_config_manager.py
 tests/test_cve_commands.py
+tests/test_cve_download_range.py
 tests/test_cve_download_update.py
+tests/test_cve_upload_tracking.py
 tests/test_research_commands.py
 wafrunner_cli/main.py
 wafrunner_cli.egg-info/PKG-INFO
