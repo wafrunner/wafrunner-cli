@@ -9,7 +9,265 @@ tests/test_api_client.py .........                                       [ 21%]
 tests/test_config_manager.py ..                                          [ 26%]
 tests/test_cve_download_range.py .........                               [ 47%]
 tests/test_cve_download_update.py ...........                            [ 73%]
-tests/test_cve_upload_tracking.py .......                                [ 90%]
+tests/test_cve_upload_tracking.py F.FFFFF                                [ 90%]
 tests/test_research_commands.py ....                                     [100%]
 
-============================== 42 passed in 0.49s ==============================
+=================================== FAILURES ===================================
+_____________________________ test_upload_new_cve ______________________________
+
+mocker = <pytest_mock.plugin.MockerFixture object at 0x70dffa100b90>
+mock_api_client = <MagicMock id='124107275373552'>
+mock_load_tracking = <MagicMock name='load_uploaded_cves_tracking' id='124107276479248'>
+mock_save_tracking = <MagicMock name='save_uploaded_cves_tracking' id='124107276475792'>
+mock_transform_vulnerability = <MagicMock name='transform_vulnerability' id='124107275174880'>
+mock_time_sleep = <MagicMock name='sleep' id='124107275180400'>
+mock_path_methods_for_tracking = None
+
+    def test_upload_new_cve(
+        mocker,
+        mock_api_client,
+        mock_load_tracking,
+        mock_save_tracking,
+        mock_transform_vulnerability,
+        mock_time_sleep,
+        mock_path_methods_for_tracking,
+    ):
+        """Test that a new CVE is created and tracked."""
+        cve_id = "CVE-2023-0001"
+        last_modified = "2023-01-01T00:00:00.000Z"
+        mock_api_client.get.return_value = None  # CVE not found in wafrunner
+        mock_api_client.post.return_value = mocker.Mock(status_code=201)  # Successful creation
+        mocker.patch(
+            "glob.glob",
+            return_value=[Path("/tmp/cve_data.json")],
+        )
+        mocker.patch(
+            "builtins.open",
+            mocker.mock_open(read_data=json.dumps(create_mock_cve_data(cve_id, last_modified))),
+        )
+    
+        result = runner.invoke(cve_app, ["upload", "--input-dir", "/tmp"])
+    
+        assert result.exit_code == 0
+>       assert "Successfully Created: [green]1[/green]" in result.stdout
+E       AssertionError: assert 'Successfully Created: [green]1[/green]' in 'Starting CVE upload from /tmp...\nReading and parsing JSON files...\nFound 1 CVE records to process.\nError processin...): 0\nErrors: 1\n  - Transform Failed: 0\n  - Create Failed: 0\n  - Update Failed: 0\n  - Record Processing Error: 1\n'
+E        +  where 'Starting CVE upload from /tmp...\nReading and parsing JSON files...\nFound 1 CVE records to process.\nError processin...): 0\nErrors: 1\n  - Transform Failed: 0\n  - Create Failed: 0\n  - Update Failed: 0\n  - Record Processing Error: 1\n' = <Result okay>.stdout
+
+tests/test_cve_upload_tracking.py:103: AssertionError
+_______________________ test_upload_modified_cve_updates _______________________
+
+mocker = <pytest_mock.plugin.MockerFixture object at 0x70dff9ec4320>
+mock_api_client = <MagicMock id='124107273028336'>
+mock_load_tracking = <MagicMock name='load_uploaded_cves_tracking' id='124107271551360'>
+mock_save_tracking = <MagicMock name='save_uploaded_cves_tracking' id='124107273389168'>
+mock_transform_vulnerability = <MagicMock name='transform_vulnerability' id='124107273397424'>
+mock_time_sleep = <MagicMock name='sleep' id='124107271583744'>
+mock_path_methods_for_tracking = None
+
+    def test_upload_modified_cve_updates(
+        mocker,
+        mock_api_client,
+        mock_load_tracking,
+        mock_save_tracking,
+        mock_transform_vulnerability,
+        mock_time_sleep,
+        mock_path_methods_for_tracking,
+    ):
+        """Test that a modified CVE is updated and tracking is refreshed."""
+        cve_id = "CVE-2023-0003"
+        old_last_modified = "2023-01-01T00:00:00.000Z"
+        new_last_modified = "2023-01-02T00:00:00.000Z"
+        mock_load_tracking.return_value = {cve_id: old_last_modified}
+        mock_api_client.get.return_value = [{"vulnID": "VULN-ID-003"}]  # CVE found
+        mock_api_client.put.return_value = mocker.Mock(status_code=200)  # Successful update
+        mocker.patch(
+            "glob.glob",
+            return_value=[Path("/tmp/cve_data.json")],
+        )
+        mocker.patch(
+            "builtins.open",
+            mocker.mock_open(read_data=json.dumps(create_mock_cve_data(cve_id, new_last_modified))),
+        )
+    
+        result = runner.invoke(cve_app, ["upload", "--input-dir", "/tmp"])
+    
+        assert result.exit_code == 0
+>       assert "Successfully Updated: 1" in result.stdout
+E       AssertionError: assert 'Successfully Updated: 1' in 'Starting CVE upload from /tmp...\nReading and parsing JSON files...\nFound 1 CVE records to process.\nError processin...): 0\nErrors: 1\n  - Transform Failed: 0\n  - Create Failed: 0\n  - Update Failed: 0\n  - Record Processing Error: 1\n'
+E        +  where 'Starting CVE upload from /tmp...\nReading and parsing JSON files...\nFound 1 CVE records to process.\nError processin...): 0\nErrors: 1\n  - Transform Failed: 0\n  - Create Failed: 0\n  - Update Failed: 0\n  - Record Processing Error: 1\n' = <Result okay>.stdout
+
+tests/test_cve_upload_tracking.py:168: AssertionError
+___________________ test_upload_force_unmodified_cve_updates ___________________
+
+mocker = <pytest_mock.plugin.MockerFixture object at 0x70dff9d962d0>
+mock_api_client = <MagicMock id='124107272072192'>
+mock_load_tracking = <MagicMock name='load_uploaded_cves_tracking' id='124107272252656'>
+mock_save_tracking = <MagicMock name='save_uploaded_cves_tracking' id='124107272154448'>
+mock_transform_vulnerability = <MagicMock name='transform_vulnerability' id='124107272393008'>
+mock_time_sleep = <MagicMock name='sleep' id='124107272162528'>
+mock_path_methods_for_tracking = None
+
+    def test_upload_force_unmodified_cve_updates(
+        mocker,
+        mock_api_client,
+        mock_load_tracking,
+        mock_save_tracking,
+        mock_transform_vulnerability,
+        mock_time_sleep,
+        mock_path_methods_for_tracking,
+    ):
+        """Test that an unmodified CVE is updated when --force is used."""
+        cve_id = "CVE-2023-0004"
+        last_modified = "2023-01-01T00:00:00.000Z"
+        mock_load_tracking.return_value = {cve_id: last_modified}
+        mock_api_client.get.return_value = [{"vulnID": "VULN-ID-004"}]  # CVE found
+        mock_api_client.put.return_value = mocker.Mock(status_code=200)  # Successful update
+        mocker.patch(
+            "glob.glob",
+            return_value=[Path("/tmp/cve_data.json")],
+        )
+        mocker.patch(
+            "builtins.open",
+            mocker.mock_open(read_data=json.dumps(create_mock_cve_data(cve_id, last_modified))),
+        )
+    
+        result = runner.invoke(cve_app, ["upload", "--input-dir", "/tmp", "--force"])
+    
+        assert result.exit_code == 0
+>       assert "Successfully Updated: 1" in result.stdout
+E       AssertionError: assert 'Successfully Updated: 1' in 'Starting CVE upload from /tmp...\nReading and parsing JSON files...\nFound 1 CVE records to process.\nError processin...): 0\nErrors: 1\n  - Transform Failed: 0\n  - Create Failed: 0\n  - Update Failed: 0\n  - Record Processing Error: 1\n'
+E        +  where 'Starting CVE upload from /tmp...\nReading and parsing JSON files...\nFound 1 CVE records to process.\nError processin...): 0\nErrors: 1\n  - Transform Failed: 0\n  - Create Failed: 0\n  - Update Failed: 0\n  - Record Processing Error: 1\n' = <Result okay>.stdout
+
+tests/test_cve_upload_tracking.py:200: AssertionError
+_______________ test_upload_conflict_cve_is_skipped_and_tracked ________________
+
+mocker = <pytest_mock.plugin.MockerFixture object at 0x70dff9f22db0>
+mock_api_client = <MagicMock id='124107272256592'>
+mock_load_tracking = <MagicMock name='load_uploaded_cves_tracking' id='124107275450368'>
+mock_save_tracking = <MagicMock name='save_uploaded_cves_tracking' id='124107272978704'>
+mock_transform_vulnerability = <MagicMock name='transform_vulnerability' id='124107272988208'>
+mock_time_sleep = <MagicMock name='sleep' id='124107273089056'>
+mock_path_methods_for_tracking = None
+
+    def test_upload_conflict_cve_is_skipped_and_tracked(
+        mocker,
+        mock_api_client,
+        mock_load_tracking,
+        mock_save_tracking,
+        mock_transform_vulnerability,
+        mock_time_sleep,
+        mock_path_methods_for_tracking,
+    ):
+        """Test that a CVE causing a 409 conflict is skipped and tracked."""
+        cve_id = "CVE-2023-0005"
+        last_modified = "2023-01-01T00:00:00.000Z"
+        mock_api_client.get.return_value = None  # CVE not found in wafrunner
+        mock_api_client.post.return_value = mocker.Mock(status_code=409)  # Conflict
+        mocker.patch(
+            "glob.glob",
+            return_value=[Path("/tmp/cve_data.json")],
+        )
+        mocker.patch(
+            "builtins.open",
+            mocker.mock_open(read_data=json.dumps(create_mock_cve_data(cve_id, last_modified))),
+        )
+    
+        result = runner.invoke(cve_app, ["upload", "--input-dir", "/tmp"])
+    
+        assert result.exit_code == 0
+>       assert "Skipped (Conflict): 1" in result.stdout
+E       AssertionError: assert 'Skipped (Conflict): 1' in 'Starting CVE upload from /tmp...\nReading and parsing JSON files...\nFound 1 CVE records to process.\nError processin...): 0\nErrors: 1\n  - Transform Failed: 0\n  - Create Failed: 0\n  - Update Failed: 0\n  - Record Processing Error: 1\n'
+E        +  where 'Starting CVE upload from /tmp...\nReading and parsing JSON files...\nFound 1 CVE records to process.\nError processin...): 0\nErrors: 1\n  - Transform Failed: 0\n  - Create Failed: 0\n  - Update Failed: 0\n  - Record Processing Error: 1\n' = <Result okay>.stdout
+
+tests/test_cve_upload_tracking.py:231: AssertionError
+______________________ test_upload_api_error_not_tracked _______________________
+
+mocker = <pytest_mock.plugin.MockerFixture object at 0x70dff9d95130>
+mock_api_client = <MagicMock id='124107272892784'>
+mock_load_tracking = <MagicMock name='load_uploaded_cves_tracking' id='124107272477664'>
+mock_save_tracking = <MagicMock name='save_uploaded_cves_tracking' id='124107272381568'>
+mock_transform_vulnerability = <MagicMock name='transform_vulnerability' id='124107272493904'>
+mock_time_sleep = <MagicMock name='sleep' id='124107272501680'>
+mock_path_methods_for_tracking = None
+
+    def test_upload_api_error_not_tracked(
+        mocker,
+        mock_api_client,
+        mock_load_tracking,
+        mock_save_tracking,
+        mock_transform_vulnerability,
+        mock_time_sleep,
+        mock_path_methods_for_tracking,
+    ):
+        """Test that a CVE causing an API error is not tracked."""
+        cve_id = "CVE-2023-0006"
+        last_modified = "2023-01-01T00:00:00.000Z"
+        mock_api_client.get.return_value = None
+        mock_api_client.post.return_value = mocker.Mock(
+            status_code=500, text="Internal Server Error"
+        )  # API error
+        mocker.patch(
+            "glob.glob",
+            return_value=[Path("/tmp/cve_data.json")],
+        )
+        mocker.patch(
+            "builtins.open",
+            mocker.mock_open(read_data=json.dumps(create_mock_cve_data(cve_id, last_modified))),
+        )
+    
+        result = runner.invoke(cve_app, ["upload", "--input-dir", "/tmp"])
+    
+        assert result.exit_code == 0
+        assert "Errors: 1" in result.stdout
+>       assert "Create Failed: 1" in result.stdout
+E       AssertionError: assert 'Create Failed: 1' in 'Starting CVE upload from /tmp...\nReading and parsing JSON files...\nFound 1 CVE records to process.\nError processin...): 0\nErrors: 1\n  - Transform Failed: 0\n  - Create Failed: 0\n  - Update Failed: 0\n  - Record Processing Error: 1\n'
+E        +  where 'Starting CVE upload from /tmp...\nReading and parsing JSON files...\nFound 1 CVE records to process.\nError processin...): 0\nErrors: 1\n  - Transform Failed: 0\n  - Create Failed: 0\n  - Update Failed: 0\n  - Record Processing Error: 1\n' = <Result okay>.stdout
+
+tests/test_cve_upload_tracking.py:265: AssertionError
+______________________ test_upload_skipped_missing_cveid _______________________
+
+mocker = <pytest_mock.plugin.MockerFixture object at 0x70dff9e245f0>
+mock_api_client = <MagicMock id='124107272497648'>
+mock_load_tracking = <MagicMock name='load_uploaded_cves_tracking' id='124107273040720'>
+mock_save_tracking = <MagicMock name='save_uploaded_cves_tracking' id='124107275403584'>
+mock_transform_vulnerability = <MagicMock name='transform_vulnerability' id='124107271551648'>
+mock_time_sleep = <MagicMock name='sleep' id='124107275439088'>
+mock_path_methods_for_tracking = None
+
+    def test_upload_skipped_missing_cveid(
+        mocker,
+        mock_api_client,
+        mock_load_tracking,
+        mock_save_tracking,
+        mock_transform_vulnerability,
+        mock_time_sleep,
+        mock_path_methods_for_tracking,
+    ):
+        """Test that a record missing a cveID is skipped."""
+        # Mock data without a 'cve.id'
+        mock_cve_data = {"cve": {"lastModified": "2023-01-01T00:00:00.000Z"}}
+        mocker.patch(
+            "glob.glob",
+            return_value=[Path("/tmp/cve_data.json")],
+        )
+        mocker.patch(
+            "builtins.open",
+            mocker.mock_open(read_data=json.dumps(mock_cve_data)),
+        )
+    
+        result = runner.invoke(cve_app, ["upload", "--input-dir", "/tmp"])
+    
+        assert result.exit_code == 0
+>       assert "Skipped (No CVE ID): 1" in result.stdout
+E       AssertionError: assert 'Skipped (No CVE ID): 1' in 'Starting CVE upload from /tmp...\nReading and parsing JSON files...\nFound 1 CVE records to process.\n  Uploading CVE...eated: 0\nSuccessfully Updated: 0\nSkipped (Conflict): 0\nSkipped (Unmodified): 0\nSkipped (No CVE ID): 0\nErrors: 0\n'
+E        +  where 'Starting CVE upload from /tmp...\nReading and parsing JSON files...\nFound 1 CVE records to process.\n  Uploading CVE...eated: 0\nSuccessfully Updated: 0\nSkipped (Conflict): 0\nSkipped (Unmodified): 0\nSkipped (No CVE ID): 0\nErrors: 0\n' = <Result okay>.stdout
+
+tests/test_cve_upload_tracking.py:294: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_cve_upload_tracking.py::test_upload_new_cve - AssertionErro...
+FAILED tests/test_cve_upload_tracking.py::test_upload_modified_cve_updates - ...
+FAILED tests/test_cve_upload_tracking.py::test_upload_force_unmodified_cve_updates
+FAILED tests/test_cve_upload_tracking.py::test_upload_conflict_cve_is_skipped_and_tracked
+FAILED tests/test_cve_upload_tracking.py::test_upload_api_error_not_tracked
+FAILED tests/test_cve_upload_tracking.py::test_upload_skipped_missing_cveid
+========================= 6 failed, 36 passed in 0.50s =========================

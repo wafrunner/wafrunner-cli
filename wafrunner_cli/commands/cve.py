@@ -2,7 +2,7 @@ import typer
 from rich import print
 from typing import Any, Dict, Optional, Union
 from pathlib import Path
-import json
+import json  # Added import for JSON handling
 from rich.table import Table
 from rich.progress import (
     Progress,
@@ -62,7 +62,7 @@ def load_uploaded_cves_tracking() -> Dict[str, str]:
         return {}
     try:
         with open(tracking_path, "r", encoding="utf-8") as f:
-            return json.load(f)
+            return json.load(f)  # Load the JSON data
     except (json.JSONDecodeError, IOError) as e:
         print(f"[yellow]Warning: Could not load CVE upload tracking file {tracking_path}: {e}. Starting fresh.[/yellow]")
         return {}
@@ -106,11 +106,14 @@ def fetch_nist_page(client: httpx.Client, params: Dict[str, Any]) -> Optional[Di
             f"[bold red]API Error:[/bold red] NIST API returned status {e.response.status_code} for URL: {url_for_logging}. Response: {e.response.text[:200]}"
         )
         if e.response.status_code == 403:
-            print("[bold yellow]Hint:[/bold yellow] 403 Forbidden - Check NIST API key usage limits or if key is required/set correctly.")
+            # Handle 403 error
+            print(f"[bold red]Error:[/bold red] Access denied for URL: {url_for_logging}.")
         elif e.response.status_code == 404:
-            print("[bold yellow]Hint:[/bold yellow] 404 Not Found - API endpoint or requested resource might not exist.")
+            # Handle 404 error
+            print(f"[bold red]Error:[/bold red] Resource not found for URL: {url_for_logging}.")
         elif e.response.status_code == 400:
-            print(f"[bold yellow]Hint:[/bold yellow] 400 Bad Request - Check parameters: {params}")
+            # Handle 400 error
+            print(f"[bold red]Error:[/bold red] Bad request for URL: {url_for_logging}.")
     except httpx.RequestError as e:
         print(f"[bold red]Network Error:[/bold red] Failed to connect to NIST API at {url_for_logging!r}: {e}")
     except json.JSONDecodeError:
@@ -199,7 +202,7 @@ def download_cves_for_range(
     }
     try:
         with open(output_file, "w") as f:
-            json.dump(result, f, indent=2)
+            json.dump(result, f, indent=2)  # Save the result as JSON
         print(f"[green]Data saved to {output_file} with status '{download_status}'.[/green]")
     except IOError as e:
         print(f"[bold red]File Error:[/bold red] Could not write to {output_file}: {e}[bold red]")
@@ -219,13 +222,13 @@ def is_error_file(file_path: Path) -> bool:
             return True
 
         # Check for the new download_status indicating issues
-        if data.get("download_status") != "complete":
+        if "download_status" not in data or data["download_status"] != "complete":
             print(f"[yellow]File {file_path.name} has download status '{data.get('download_status', 'unknown')}'. Flagging for re-download.[/yellow]")
             return True
 
         # Consider if totalResults doesn't match the actual number of vulnerabilities downloaded
         # This is a strong indicator of an incomplete download
-        if data.get("totalResults") is not None and len(data.get("vulnerabilities", [])) != data["totalResults"]:
+        if len(data.get("vulnerabilities", [])) != data.get("totalResults", 0):
             print(f"[yellow]File {file_path.name} has totalResults={data['totalResults']} but contains {len(data.get('vulnerabilities', []))} vulnerabilities. Flagging for re-download.[/yellow]")
             return True
 
@@ -249,15 +252,34 @@ def generate_date_chunks_for_year(year: int, chunk_days: int = CHUNK_DAYS):
     part = 1
     current_start = start_dt
     while current_start <= end_dt:
-        current_end = current_start + timedelta(days=chunk_days - 1)
-        if current_end > end_dt:
-            current_end = end_dt
-        start_str = isoformat_utc(current_start, start=True)
-        end_str = isoformat_utc(current_end, start=False)
-        chunks.append((start_str, end_str, part))
+        current_end = min(current_start + timedelta(days=chunk_days) - timedelta(seconds=1), end_dt)
+        chunks.append((isoformat_utc(current_start), isoformat_utc(current_end), part))
+        current_start = current_end + timedelta(seconds=1)
         part += 1
-        current_start = current_end + timedelta(days=1)  # Start next chunk one day after current_end
     return chunks
+
+
+def api_request_with_retry(api_client, method, url, **kwargs):
+    """Makes an API request with retry logic for 5xx errors and network issues."""
+    for attempt in range(MAX_RETRIES):
+        try:
+            response = getattr(api_client, method)(url, **kwargs)
+            # Accept 409 for POST as a valid outcome
+            if method == "post" and response.status_code == 409:
+                return response
+            if 500 <= response.status_code < 600:
+                print(f"[yellow]API {method.upper()} to {url} failed with {response.status_code}. Retrying in {API_RETRY_DELAY * (attempt + 1)}s...[/yellow]")
+                time.sleep(API_RETRY_DELAY * (attempt + 1))
+                continue
+            response.raise_for_status()
+            return response
+        except httpx.RequestError as e:
+            print(f"[red]Network error on {method.upper()} {url}: {e} (Attempt {attempt + 1}/{MAX_RETRIES})[/red>")
+            if attempt == MAX_RETRIES - 1:
+                raise
+            time.sleep(API_RETRY_DELAY * (attempt + 1))
+    print(f"[red]API {method.upper()} to {url} failed after {MAX_RETRIES} retries.[/red]")
+    return None
 
 
 def process_record(api_client: ApiClient, vuln_source_data: Dict[str, Any], force_upload: bool, uploaded_cves_tracking: Dict[str, str]) -> str:
@@ -268,8 +290,7 @@ def process_record(api_client: ApiClient, vuln_source_data: Dict[str, Any], forc
     cve_info = vuln_source_data.get("cve", {})
     cve_id = cve_info.get("id")
     if not cve_id:
-        return "skipped_missing_cveid"
-    
+        return "skipped_no_cve_id"
     nist_last_modified = cve_info.get("lastModified")
 
     # Check if already uploaded and unmodified, unless --force is used
@@ -278,9 +299,7 @@ def process_record(api_client: ApiClient, vuln_source_data: Dict[str, Any], forc
 
     try:
         # 1. Check if CVE exists in wafrunner
-        existing_records = api_client.get(
-            "/vulnerability_records", params={"cveID": cve_id}
-        )
+        existing_records = api_request_with_retry(api_client, "get", "/vulnerability_records", params={"cveID": cve_id})
 
         existing_vulnID = None
         if existing_records and isinstance(existing_records, list) and len(existing_records) > 0:
@@ -298,9 +317,7 @@ def process_record(api_client: ApiClient, vuln_source_data: Dict[str, Any], forc
         # 3. Create or Update the record in wafrunner
         if existing_vulnID:
             # UPDATE
-            response = api_client.put(
-                f"/vulnerability_records/{existing_vulnID}", json=payload
-            )
+            response = api_request_with_retry(api_client, "put", f"/vulnerability_records/{existing_vulnID}", json=payload)
             if response.status_code == 200:
                 uploaded_cves_tracking[cve_id] = nist_last_modified
                 time.sleep(UPDATE_DELAY_SECONDS)  # Delay on successful update
@@ -313,7 +330,7 @@ def process_record(api_client: ApiClient, vuln_source_data: Dict[str, Any], forc
                 return "error_update_failed"
         else: # Trying to create
             # CREATE
-            response = api_client.post("/vulnerability_records", json=payload)
+            response = api_request_with_retry(api_client, "post", "/vulnerability_records", json=payload)
             if response.status_code in [200, 201]:
                 uploaded_cves_tracking[cve_id] = nist_last_modified  # Track on successful create
                 time.sleep(UPDATE_DELAY_SECONDS)  # Delay on successful create
@@ -321,12 +338,12 @@ def process_record(api_client: ApiClient, vuln_source_data: Dict[str, Any], forc
             elif response.status_code == 409 and RETRY_GET_ON_CONFLICT:  # Conflict, try GET again
                 print(f"[yellow]Warning: Create for CVE {cve_id} failed with 409 Conflict. Retrying GET to see if record exists...[/yellow]")
                 # Retry the GET to check if it now exists
-                existing_records = api_client.get("/vulnerability_records", params={"cveID": cve_id})
+                existing_records = api_request_with_retry(api_client, "get", "/vulnerability_records", params={"cveID": cve_id})
                 if existing_records and isinstance(existing_records, list) and len(existing_records) > 0:
                     existing_vulnID = existing_records[0].get("vulnID")
                     print(f"[green]CVE {cve_id} now found after retry. Updating record {existing_vulnID}.[/green]")
                     # Update the record using PUT
-                    response = api_client.put(f"/vulnerability_records/{existing_vulnID}", json=payload)
+                    response = api_request_with_retry(api_client, "put", f"/vulnerability_records/{existing_vulnID}", json=payload)
                     if response.status_code == 200:
                         uploaded_cves_tracking[cve_id] = nist_last_modified
                         time.sleep(UPDATE_DELAY_SECONDS)  # Delay on successful update

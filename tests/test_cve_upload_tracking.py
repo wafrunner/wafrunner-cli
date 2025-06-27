@@ -100,7 +100,7 @@ def test_upload_new_cve(
     result = runner.invoke(cve_app, ["upload", "--input-dir", "/tmp"])
 
     assert result.exit_code == 0
-    assert "Successfully Created: 1" in result.stdout
+    assert "Successfully Created: [green]1[/green]" in result.stdout
     mock_api_client.post.assert_called_once()
     mock_save_tracking.assert_called_once_with({cve_id: last_modified})
 
