@@ -99,7 +99,10 @@ def test_download_no_update_file_exists_invalid(
     result = runner.invoke(cve_app, ["download", "--year", str(year)])
 
     assert result.exit_code == 0
-    assert "exists but is incomplete or has errors. Re-downloading." in result.stdout
+
+    assert "exists but is incomplete or has errors." in result.stdout
+    assert "Re-downloading." in result.stdout
+
     # For 2023, generate_date_chunks_for_year creates 4 chunks (365 / 120 = 3.04)
     assert mock_download_cves_for_range.call_count == 4
     mock_path_methods[1].assert_called_once() # mkdir should still be called for the default path
@@ -120,7 +123,7 @@ def test_download_update_file_exists_valid(
     assert result.exit_code == 0
     assert "Data will be saved to" in result.stdout # Initial message
     assert "Update mode: True" in result.stdout
-    assert "Re-downloading." in result.stdout # Because update is True
+    assert "re-downloading due to --update flag" in result.stdout # Because update is True
     assert mock_download_cves_for_range.call_count == 4
     mock_path_methods[1].assert_called_once() # mkdir should still be called for the default path
 

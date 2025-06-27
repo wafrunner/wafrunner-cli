@@ -94,7 +94,7 @@ def test_api_client_post_success(mocker):
     # Assert
     assert result.json() == {"status": "created"}
     mock_request_method.assert_called_once_with(
-        "POST", "/create-endpoint", params=None, json=post_data
+        "POST", "/create-endpoint", json=post_data
     )
 
 
