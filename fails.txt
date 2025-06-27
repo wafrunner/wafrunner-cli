@@ -3,27 +3,47 @@ platform linux -- Python 3.12.3, pytest-8.4.1, pluggy-1.6.0
 rootdir: /home/sam/Engineering/wafrunner/wafrunner-cli
 configfile: pyproject.toml
 plugins: anyio-4.9.0, mock-3.14.1, cov-6.2.1
-collected 58 items
+collected 70 items
 
-tests/test_api_client.py .........                                       [ 15%]
-tests/test_collection_commands.py .........                              [ 31%]
-tests/test_config_manager.py ..                                          [ 34%]
-tests/test_cve_download_range.py .........                               [ 50%]
-tests/test_cve_download_update.py FFFFF...FF.                            [ 68%]
-tests/test_cve_upload_tracking.py .......FF                              [ 84%]
-tests/test_research_commands.py ....                                     [ 91%]
-tests/test_shell_command.py .F.FF                                        [100%]
+tests/test_api_client.py .........                                       [ 12%]
+tests/test_collection_commands.py .....F...                              [ 25%]
+tests/test_config_manager.py ..                                          [ 28%]
+tests/test_cve_download_range.py .........                               [ 41%]
+tests/test_cve_download_update.py FFF.....FF.                            [ 57%]
+tests/test_cve_upload_tracking.py .......FF                              [ 70%]
+tests/test_research_commands.py FFFFFFFFFFFFFFFF                         [ 92%]
+tests/test_shell_command.py .....                                        [100%]
 
 =================================== FAILURES ===================================
+_____________________________ test_collection_list _____________________________
+
+data_dir = PosixPath('/tmp/pytest-of-sam/pytest-65/test_collection_list0/.wafrunner/data')
+
+    def test_collection_list(data_dir):
+        """Tests the list command output."""
+        create_mock_collection_file(data_dir, "coll-1", {"name": "coll-1", "vulnerabilities": [1,2,3], "keywords": ["kw1"], "last_updated": "date1"})
+        create_mock_collection_file(data_dir, "coll-2", {"name": "coll-2", "vulnerabilities": [1], "keywords": ["kw2"], "last_updated": "date2"})
+    
+        result = runner.invoke(collection_app.app, ["list"])
+    
+        assert result.exit_code == 0
+        assert "coll-1" in result.stdout
+        assert "coll-2" in result.stdout
+>       assert "3" in result.stdout # item count
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: assert '3' in '                             Available Collections                              \n┏━━━━━━━━┳━━━━━━━┳━━━━━━━━━━┳━━━━━━...       │ is not a dictionary.    │\n└────────┴───────┴──────────┴────────────────────────┴─────────────────────────┘\n'
+E        +  where '                             Available Collections                              \n┏━━━━━━━━┳━━━━━━━┳━━━━━━━━━━┳━━━━━━...       │ is not a dictionary.    │\n└────────┴───────┴──────────┴────────────────────────┴─────────────────────────┘\n' = <Result okay>.stdout
+
+tests/test_collection_commands.py:164: AssertionError
 __________________ test_download_no_update_file_exists_valid ___________________
 
-mock_path_methods = (<MagicMock name='exists' id='133294445479648'>, <MagicMock name='mkdir' id='133294443502560'>)
-mock_json_io = (<MagicMock name='load' id='133294443510432'>, <MagicMock name='dump' id='133294443547104'>)
-mock_time_sleep = <MagicMock name='sleep' id='133294443558480'>
-mock_download_cves_for_range = <MagicMock name='download_cves_for_range' id='133294441485408'>
-mock_is_error_file_func = <MagicMock name='is_error_file' id='133294441493040'>
-mock_progress = <MagicMock id='133294441500784'>
-mock_httpx_client = <MagicMock id='133294443455568'>
+mock_path_methods = (<MagicMock name='exists' id='133381783289584'>, <MagicMock name='mkdir' id='133381783441088'>)
+mock_json_io = (<MagicMock name='load' id='133381783448816'>, <MagicMock name='dump' id='133381783456608'>)
+mock_time_sleep = <MagicMock name='sleep' id='133381783464384'>
+mock_download_cves_for_range = <MagicMock name='download_cves_for_range' id='133381783504752'>
+mock_is_error_file_func = <MagicMock name='is_error_file' id='133381783512384'>
+mock_progress = <MagicMock id='133381783515264'>
+mock_httpx_client = <MagicMock id='133381783313136'>
 
     def test_download_no_update_file_exists_valid(
         mock_path_methods, mock_json_io, mock_time_sleep, mock_download_cves_for_range, mock_is_error_file_func, mock_progress, mock_httpx_client
@@ -40,19 +60,19 @@ mock_httpx_client = <MagicMock id='133294443455568'>
     
         assert result.exit_code == 0
 >       assert "already exists and appears valid. Skipping." in result.stdout
-E       AssertionError: assert 'already exists and appears valid. Skipping.' in 'Initializing CVE download for 2023...\nFile nvd-cves-2023-1.json is valid. Skipping.\nFile nvd-cves-2023-2.json is va...-cves-2023-3.json is valid. Skipping.\nFile nvd-cves-2023-4.json is valid. Skipping.\n\n✔ Download process finished.\n'
-E        +  where 'Initializing CVE download for 2023...\nFile nvd-cves-2023-1.json is valid. Skipping.\nFile nvd-cves-2023-2.json is va...-cves-2023-3.json is valid. Skipping.\nFile nvd-cves-2023-4.json is valid. Skipping.\n\n✔ Download process finished.\n' = <Result okay>.stdout
+E       AssertionError: assert 'already exists and appears valid. Skipping.' in 'Initializing CVE download from 2023 to 2023 from NIST...\nData will be saved to /home/sam/.wafrunner/data/cve-sources...-cves-2023-3.json is valid. Skipping.\nFile nvd-cves-2023-4.json is valid. Skipping.\n\n✔ Download process finished.\n'
+E        +  where 'Initializing CVE download from 2023 to 2023 from NIST...\nData will be saved to /home/sam/.wafrunner/data/cve-sources...-cves-2023-3.json is valid. Skipping.\nFile nvd-cves-2023-4.json is valid. Skipping.\n\n✔ Download process finished.\n' = <Result okay>.stdout
 
 tests/test_cve_download_update.py:84: AssertionError
 _________________ test_download_no_update_file_exists_invalid __________________
 
-mock_path_methods = (<MagicMock name='exists' id='133294441489152'>, <MagicMock name='mkdir' id='133294445580736'>)
-mock_json_io = (<MagicMock name='load' id='133294445584720'>, <MagicMock name='dump' id='133294445543344'>)
-mock_time_sleep = <MagicMock name='sleep' id='133294445610384'>
-mock_download_cves_for_range = <MagicMock name='download_cves_for_range' id='133294445637424'>
-mock_is_error_file_func = <MagicMock name='is_error_file' id='133294445136400'>
-mock_progress = <MagicMock id='133294445146768'>
-mock_httpx_client = <MagicMock id='133294445143168'>
+mock_path_methods = (<MagicMock name='exists' id='133381783445072'>, <MagicMock name='mkdir' id='133381783441136'>)
+mock_json_io = (<MagicMock name='load' id='133381785246208'>, <MagicMock name='dump' id='133381785172928'>)
+mock_time_sleep = <MagicMock name='sleep' id='133381785119360'>
+mock_download_cves_for_range = <MagicMock name='download_cves_for_range' id='133381785122240'>
+mock_is_error_file_func = <MagicMock name='is_error_file' id='133381785124496'>
+mock_progress = <MagicMock id='133381785429696'>
+mock_httpx_client = <MagicMock id='133381785279408'>
 
     def test_download_no_update_file_exists_invalid(
         mock_path_methods, mock_json_io, mock_time_sleep, mock_download_cves_for_range, mock_is_error_file_func, mock_progress, mock_httpx_client
@@ -69,19 +89,19 @@ mock_httpx_client = <MagicMock id='133294445143168'>
     
         assert result.exit_code == 0
 >       assert "exists but is incomplete or has errors." in result.stdout
-E       AssertionError: assert 'exists but is incomplete or has errors.' in 'Initializing CVE download for 2023...\n\n✔ Download process finished.\n'
-E        +  where 'Initializing CVE download for 2023...\n\n✔ Download process finished.\n' = <Result okay>.stdout
+E       AssertionError: assert 'exists but is incomplete or has errors.' in 'Initializing CVE download from 2023 to 2023 from NIST...\nData will be saved to /home/sam/.wafrunner/data/cve-sources. Update mode: False\n\n✔ Download process finished.\n'
+E        +  where 'Initializing CVE download from 2023 to 2023 from NIST...\nData will be saved to /home/sam/.wafrunner/data/cve-sources. Update mode: False\n\n✔ Download process finished.\n' = <Result okay>.stdout
 
 tests/test_cve_download_update.py:102: AssertionError
 ____________________ test_download_update_file_exists_valid ____________________
 
-mock_path_methods = (<MagicMock name='exists' id='133294445459456'>, <MagicMock name='mkdir' id='133294443415744'>)
-mock_json_io = (<MagicMock name='load' id='133294441510672'>, <MagicMock name='dump' id='133294441907840'>)
-mock_time_sleep = <MagicMock name='sleep' id='133294441919168'>
-mock_download_cves_for_range = <MagicMock name='download_cves_for_range' id='133294441894144'>
-mock_is_error_file_func = <MagicMock name='is_error_file' id='133294441898032'>
-mock_progress = <MagicMock id='133294441902544'>
-mock_httpx_client = <MagicMock id='133294441832064'>
+mock_path_methods = (<MagicMock name='exists' id='133381786999632'>, <MagicMock name='mkdir' id='133381783769920'>)
+mock_json_io = (<MagicMock name='load' id='133381783777792'>, <MagicMock name='dump' id='133381783666768'>)
+mock_time_sleep = <MagicMock name='sleep' id='133381783678480'>
+mock_download_cves_for_range = <MagicMock name='download_cves_for_range' id='133381783735280'>
+mock_is_error_file_func = <MagicMock name='is_error_file' id='133381783742864'>
+mock_progress = <MagicMock id='133381783745648'>
+mock_httpx_client = <MagicMock id='133381783822576'>
 
     def test_download_update_file_exists_valid(
         mock_path_methods, mock_json_io, mock_time_sleep, mock_download_cves_for_range, mock_is_error_file_func, mock_progress, mock_httpx_client
@@ -97,78 +117,22 @@ mock_httpx_client = <MagicMock id='133294441832064'>
         result = runner.invoke(cve_app, ["download", "--year", str(year), "--update"])
     
         assert result.exit_code == 0
->       assert "Data will be saved to" in result.stdout # Initial message
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-E       AssertionError: assert 'Data will be saved to' in 'Initializing CVE download for 2023...\n\n✔ Download process finished.\n'
-E        +  where 'Initializing CVE download for 2023...\n\n✔ Download process finished.\n' = <Result okay>.stdout
+        assert "Data will be saved to" in result.stdout # Initial message
+        assert "Update mode: True" in result.stdout
+>       assert "re-downloading due to --update flag" in result.stdout # Because update is True
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: assert 're-downloading due to --update flag' in 'Initializing CVE download from 2023 to 2023 from NIST...\nData will be saved to /home/sam/.wafrunner/data/cve-sources. Update mode: True\n\n✔ Download process finished.\n'
+E        +  where 'Initializing CVE download from 2023 to 2023 from NIST...\nData will be saved to /home/sam/.wafrunner/data/cve-sources. Update mode: True\n\n✔ Download process finished.\n' = <Result okay>.stdout
 
-tests/test_cve_download_update.py:122: AssertionError
-_________________ test_download_no_update_file_does_not_exist __________________
-
-mock_path_methods = (<MagicMock name='exists' id='133294441905568'>, <MagicMock name='mkdir' id='133294443702576'>)
-mock_json_io = (<MagicMock name='load' id='133294443699168'>, <MagicMock name='dump' id='133294443510288'>)
-mock_time_sleep = <MagicMock name='sleep' id='133294445447504'>
-mock_download_cves_for_range = <MagicMock name='download_cves_for_range' id='133294445634832'>
-mock_is_error_file_func = <MagicMock name='is_error_file' id='133294445210624'>
-mock_progress = <MagicMock id='133294445211488'>
-mock_httpx_client = <MagicMock id='133294445141872'>
-
-    def test_download_no_update_file_does_not_exist(
-        mock_path_methods, mock_json_io, mock_time_sleep, mock_download_cves_for_range, mock_is_error_file_func, mock_progress, mock_httpx_client
-    ):
-        """
-        Test download command when --update is False, file does not exist.
-        Should download.
-        """
-        mock_path_methods[0].return_value = False  # Path.exists returns False
-    
-        year = 2023
-        result = runner.invoke(cve_app, ["download", "--year", str(year)])
-    
-        assert result.exit_code == 0
->       assert "Data will be saved to" in result.stdout # Initial message
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-E       AssertionError: assert 'Data will be saved to' in 'Initializing CVE download for 2023...\n\n✔ Download process finished.\n'
-E        +  where 'Initializing CVE download for 2023...\n\n✔ Download process finished.\n' = <Result okay>.stdout
-
-/home/sam/Engineering/wafrunner/wafrunner-cli/tests/test_cve_download_update.py:141: AssertionError
-___________________ test_download_update_file_does_not_exist ___________________
-
-mock_path_methods = (<MagicMock name='exists' id='133294443699072'>, <MagicMock name='mkdir' id='133294442096176'>)
-mock_json_io = (<MagicMock name='load' id='133294442169840'>, <MagicMock name='dump' id='133294442173680'>)
-mock_time_sleep = <MagicMock name='sleep' id='133294442217984'>
-mock_download_cves_for_range = <MagicMock name='download_cves_for_range' id='133294442225568'>
-mock_is_error_file_func = <MagicMock name='is_error_file' id='133294442229456'>
-mock_progress = <MagicMock id='133294442250560'>
-mock_httpx_client = <MagicMock id='133294442262080'>
-
-    def test_download_update_file_does_not_exist(
-        mock_path_methods, mock_json_io, mock_time_sleep, mock_download_cves_for_range, mock_is_error_file_func, mock_progress, mock_httpx_client
-    ):
-        """
-        Test download command when --update is True, file does not exist.
-        Should download.
-        """
-        mock_path_methods[0].return_value = False  # Path.exists returns False
-    
-        year = 2023
-        result = runner.invoke(cve_app, ["download", "--year", str(year), "--update"])
-    
-        assert result.exit_code == 0
->       assert "Data will be saved to" in result.stdout # Initial message
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-E       AssertionError: assert 'Data will be saved to' in 'Initializing CVE download for 2023...\n\n✔ Download process finished.\n'
-E        +  where 'Initializing CVE download for 2023...\n\n✔ Download process finished.\n' = <Result okay>.stdout
-
-/home/sam/Engineering/wafrunner/wafrunner-cli/tests/test_cve_download_update.py:159: AssertionError
+tests/test_cve_download_update.py:124: AssertionError
 ______________________ test_is_error_file_total_mismatch _______________________
 
-self = <MagicMock name='print' id='133294441948720'>
+self = <MagicMock name='print' id='133381782040224'>
 args = ('[yellow]File mismatch.json has totalResults=10 but contains 1 vulnerabilities. Flagging for re-download.[/yellow]',)
 kwargs = {}
 expected = call('[yellow]File mismatch.json has totalResults=10 but contains 1 vulnerabilities. Flagging for re-download.[/yellow]')
 actual = call('[yellow]File mismatch.json has mismatched counts. Flagging for re-download.[/yellow]')
-_error_message = <function NonCallableMock.assert_called_with.<locals>._error_message at 0x793b07d8a340>
+_error_message = <function NonCallableMock.assert_called_with.<locals>._error_message at 0x794f5df49ee0>
 cause = None
 
     def assert_called_with(self, /, *args, **kwargs):
@@ -199,7 +163,7 @@ E             Actual: print('[yellow]File mismatch.json has mismatched counts. F
 
 During handling of the above exception, another exception occurred:
 
-mocker = <pytest_mock.plugin.MockerFixture object at 0x793b08145670>
+mocker = <pytest_mock.plugin.MockerFixture object at 0x794f5dbbbc50>
 
     def test_is_error_file_total_mismatch(mocker):
         """Test is_error_file with totalResults not matching actual vulnerabilities count."""
@@ -224,7 +188,7 @@ E         Use -v to get more diff
 tests/test_cve_download_update.py:207: AssertionError
 _______________________ test_is_error_file_empty_results _______________________
 
-self = <MagicMock name='print' id='133294441074032'>
+self = <MagicMock name='print' id='133381785251872'>
 
     def assert_not_called(self):
         """assert that the mock was never called.
@@ -242,7 +206,7 @@ E           Calls: [call("[yellow]File empty.json has download status 'unknown'.
 
 During handling of the above exception, another exception occurred:
 
-mocker = <pytest_mock.plugin.MockerFixture object at 0x793b07e49760>
+mocker = <pytest_mock.plugin.MockerFixture object at 0x794f5dd12d50>
 
     def test_is_error_file_empty_results(mocker):
         """Test is_error_file with totalResults 0 and empty vulnerabilities."""
@@ -265,7 +229,7 @@ E         Use -v to get more diff
 tests/test_cve_download_update.py:217: AssertionError
 ______________________ test_upload_api_error_not_tracked _______________________
 
-self = <MagicMock name='mock.post' id='133294445611776'>
+self = <MagicMock name='mock.post' id='133381781952688'>
 
     def assert_called_once(self):
         """assert that the mock was called only once.
@@ -286,10 +250,10 @@ E            call().raise_for_status()].
 
 During handling of the above exception, another exception occurred:
 
-cve_input_dir = PosixPath('/tmp/pytest-of-sam/pytest-53/test_upload_api_error_not_trac0/cve-sources')
-mock_api_client = <MagicMock id='133294440870496'>
-mock_tracking_io = (<MagicMock name='load_uploaded_cves_tracking' id='133294440986384'>, <MagicMock name='save_uploaded_cves_tracking' id='133294440985520'>)
-mock_time_sleep = <MagicMock name='sleep' id='133294445636752'>
+cve_input_dir = PosixPath('/tmp/pytest-of-sam/pytest-65/test_upload_api_error_not_trac0/cve-sources')
+mock_api_client = <MagicMock id='133381782642016'>
+mock_tracking_io = (<MagicMock name='load_uploaded_cves_tracking' id='133381782709760'>, <MagicMock name='save_uploaded_cves_tracking' id='133381782706928'>)
+mock_time_sleep = <MagicMock name='sleep' id='133381782671760'>
 
     def test_upload_api_error_not_tracked(cve_input_dir, mock_api_client, mock_tracking_io, mock_time_sleep): # Removed mock_transform_vulnerability
         cve_id = "CVE-2024-0007"
@@ -335,10 +299,10 @@ E         ...Full output truncated (13 lines hidden), use '-vv' to show
 tests/test_cve_upload_tracking.py:222: AssertionError
 ______________________ test_upload_skipped_missing_cveid _______________________
 
-cve_input_dir = PosixPath('/tmp/pytest-of-sam/pytest-53/test_upload_skipped_missing_cv0/cve-sources')
-mock_api_client = <MagicMock id='133294440981728'>
-mock_tracking_io = (<MagicMock name='load_uploaded_cves_tracking' id='133294443697728'>, <MagicMock name='save_uploaded_cves_tracking' id='133294443705168'>)
-mock_time_sleep = <MagicMock name='sleep' id='133294445582560'>
+cve_input_dir = PosixPath('/tmp/pytest-of-sam/pytest-65/test_upload_skipped_missing_cv0/cve-sources')
+mock_api_client = <MagicMock id='133381781949616'>
+mock_tracking_io = (<MagicMock name='load_uploaded_cves_tracking' id='133381782054304'>, <MagicMock name='save_uploaded_cves_tracking' id='133381782047248'>)
+mock_time_sleep = <MagicMock name='sleep' id='133381781981136'>
 
     def test_upload_skipped_missing_cveid(cve_input_dir, mock_api_client, mock_tracking_io, mock_time_sleep): # Removed mock_transform_vulnerability
         # Create a mock CVE file with a record missing the 'id' field
@@ -350,224 +314,288 @@ mock_time_sleep = <MagicMock name='sleep' id='133294445582560'>
         assert result.exit_code == 0
 >       assert "Skipped (No CVE ID)" in result.stdout # Check for the outcome string
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-E       AssertionError: assert 'Skipped (No CVE ID)' in 'Starting CVE upload from \n/tmp/pytest-of-sam/pytest-53/test_upload_skipped_missing_cv0/cve-sources...\nReading, pars...ct)              │     0 │\n│ Total Errors                    │     0 │\n└─────────────────────────────────┴───────┘\n'
-E        +  where 'Starting CVE upload from \n/tmp/pytest-of-sam/pytest-53/test_upload_skipped_missing_cv0/cve-sources...\nReading, pars...ct)              │     0 │\n│ Total Errors                    │     0 │\n└─────────────────────────────────┴───────┘\n' = <Result okay>.stdout
+E       AssertionError: assert 'Skipped (No CVE ID)' in 'Starting CVE upload from \n/tmp/pytest-of-sam/pytest-65/test_upload_skipped_missing_cv0/cve-sources...\nReading, pars...ct)              │     0 │\n│ Total Errors                    │     0 │\n└─────────────────────────────────┴───────┘\n'
+E        +  where 'Starting CVE upload from \n/tmp/pytest-of-sam/pytest-65/test_upload_skipped_missing_cv0/cve-sources...\nReading, pars...ct)              │     0 │\n│ Total Errors                    │     0 │\n└─────────────────────────────────┴───────┘\n' = <Result okay>.stdout
 
 tests/test_cve_upload_tracking.py:234: AssertionError
-________________________ test_run_shell_initialization _________________________
+___________________ test_github_command_no_identifier_fails ____________________
 
-mock_prompt_session = (<MagicMock id='133294445449376'>, <MagicMock name='PromptSession' id='133294445451968'>)
-mock_main_app = <MagicMock name='app' spec='Typer' id='133294445136592'>
-mock_rich_print = <MagicMock name='print' id='133294445136208'>
-mock_path_methods = None
-tmp_path = PosixPath('/tmp/pytest-of-sam/pytest-53/test_run_shell_initialization0')
+    def test_github_command_no_identifier_fails():
+        """Test that 'github' exits with an error if no identifier is provided."""
+        result = runner.invoke(research_app, ["github"])
+        assert result.exit_code == 1
+>       assert "Error: Please provide either a --collection or a --vulnid." in result.stdout
+E       AssertionError: assert 'Error: Please provide either a --collection or a --vulnid.' in ''
+E        +  where '' = <Result SystemExit(1)>.stdout
 
-    def test_run_shell_initialization(mock_prompt_session, mock_main_app, mock_rich_print, mock_path_methods, tmp_path):
-        """
-        Tests that the shell initializes correctly, setting up history and the completer.
-        """
-        mock_session_instance, mock_session_class = mock_prompt_session
-        mock_session_instance.prompt.return_value = "exit" # Exit immediately
+tests/test_research_commands.py:50: AssertionError
+__________________ test_github_command_both_identifiers_fail ___________________
+
+    def test_github_command_both_identifiers_fail():
+        """Test that 'github' exits with an error if both identifiers are provided."""
+        result = runner.invoke(research_app, ["github", "--collection", "my-coll", "--vulnid", "VULN-123"])
+        assert result.exit_code == 1
+>       assert "Error: Options --collection and --vulnid are mutually exclusive." in result.stdout
+E       AssertionError: assert 'Error: Options --collection and --vulnid are mutually exclusive.' in ''
+E        +  where '' = <Result SystemExit(1)>.stdout
+
+tests/test_research_commands.py:56: AssertionError
+___________________ test_github_command_with_vulnid_succeeds ___________________
+
+mock_api_client = <NonCallableMagicMock name='ApiClient()' spec='ApiClient' id='133381783199072'>
+mock_config_manager = <NonCallableMagicMock name='ConfigManager()' spec='ConfigManager' id='133381783369728'>
+
+    def test_github_command_with_vulnid_succeeds(mock_api_client, mock_config_manager):
+        """Test a successful 'github' run with a single vulnID."""
+        result = runner.invoke(research_app, ["github", "--vulnid", "VULN-123"])
+        assert result.exit_code == 0
+>       assert "Found 1 vulnerability ID(s) to process." in result.stdout
+E       AssertionError: assert 'Found 1 vulnerability ID(s) to process.' in ''
+E        +  where '' = <Result okay>.stdout
+
+tests/test_research_commands.py:62: AssertionError
+_________________ test_github_command_with_collection_succeeds _________________
+
+mock_api_client = <NonCallableMagicMock name='ApiClient()' spec='ApiClient' id='133381786855008'>
+mock_config_manager = <NonCallableMagicMock name='ConfigManager()' spec='ConfigManager' id='133381783714848'>
+tmp_path = PosixPath('/tmp/pytest-of-sam/pytest-65/test_github_command_with_colle0')
+
+    def test_github_command_with_collection_succeeds(mock_api_client, mock_config_manager, tmp_path):
+        """Test a successful 'github' run with a collection file."""
+        collection_file = tmp_path / "my-collection.txt"
+        collection_file.write_text("VULN-001\nVULN-002")
     
-        run_shell()
+        result = runner.invoke(research_app, ["github", "--collection", "my-collection.txt"])
     
-        mock_rich_print.assert_any_call("[bold green]Welcome to the wafrunner interactive shell.[/bold green]")
-        history_file_path = tmp_path / ".wafrunner" / "shell_history"
-        mock_session_class.assert_called_once()
->       assert str(mock_session_class.call_args.kwargs['history'].file_path) == str(history_file_path)
-                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-E       AttributeError: 'FileHistory' object has no attribute 'file_path'
+        assert result.exit_code == 0
+>       assert "Found 2 vulnerability ID(s) to process." in result.stdout
+E       AssertionError: assert 'Found 2 vulnerability ID(s) to process.' in ''
+E        +  where '' = <Result okay>.stdout
 
-tests/test_shell_command.py:99: AttributeError
-_______________________ test_run_shell_executes_command ________________________
-TypeError: too many positional arguments
+tests/test_research_commands.py:75: AssertionError
+_________________ test_github_command_skips_completed_searches _________________
 
-The above exception was the direct cause of the following exception:
+mock_api_client = <NonCallableMagicMock name='ApiClient()' spec='ApiClient' id='133381783703280'>
+mock_config_manager = <NonCallableMagicMock name='ConfigManager()' spec='ConfigManager' id='133381784920928'>
 
-self = <MagicMock name='app' spec='Typer' id='133294443393632'>
-args = (['cve', 'upload', '--force'],)
-kwargs = {'prog_name': 'wafrunner', 'standalone_mode': False}
-expected = TypeError('too many positional arguments')
-actual = TypeError('too many positional arguments')
-_error_message = <function NonCallableMock.assert_called_with.<locals>._error_message at 0x793b07d77600>
-cause = TypeError('too many positional arguments')
-
-    def assert_called_with(self, /, *args, **kwargs):
-        """assert that the last call was made with the specified arguments.
+    def test_github_command_skips_completed_searches(mock_api_client, mock_config_manager):
+        """Test that 'github' skips vulnIDs with already completed searches."""
+        # Configure mock to return different records based on vulnID
+        def get_record_side_effect(vuln_id):
+            if vuln_id == "VULN-COMPLETED":
+                return {"github_searches": [{"status": "complete"}]}
+            return {"github_searches": []}
     
-        Raises an AssertionError if the args and keyword args passed in are
-        different to the last call to the mock."""
-        if self.call_args is None:
-            expected = self._format_mock_call_signature(args, kwargs)
-            actual = 'not called.'
-            error_message = ('expected call not found.\nExpected: %s\n  Actual: %s'
-                    % (expected, actual))
-            raise AssertionError(error_message)
+        mock_api_client.get_vulnerability_record.side_effect = get_record_side_effect
     
-        def _error_message():
-            msg = self._format_mock_failure_message(args, kwargs)
-            return msg
-        expected = self._call_matcher(_Call((args, kwargs), two=True))
-        actual = self._call_matcher(self.call_args)
-        if actual != expected:
-            cause = expected if isinstance(expected, Exception) else None
->           raise AssertionError(_error_message()) from cause
-E           AssertionError: expected call not found.
-E           Expected: app(['cve', 'upload', '--force'], prog_name='wafrunner', standalone_mode=False)
-E             Actual: app(['cve', 'upload', '--force'], prog_name='wafrunner', standalone_mode=False)
+        result = runner.invoke(research_app, ["github", "--vulnid", "VULN-COMPLETED"])
+        assert result.exit_code == 0
+>       assert "Skipping VULN-COMPLETED: Found existing completed search." in result.stdout
+E       AssertionError: assert 'Skipping VULN-COMPLETED: Found existing completed search.' in ''
+E        +  where '' = <Result okay>.stdout
 
-/usr/lib/python3.12/unittest/mock.py:944: AssertionError
+tests/test_research_commands.py:91: AssertionError
+_______________ test_github_command_force_option_overrides_skip ________________
 
-During handling of the above exception, another exception occurred:
+mock_api_client = <NonCallableMagicMock name='ApiClient()' spec='ApiClient' id='133381783370304'>
+mock_config_manager = <NonCallableMagicMock name='ConfigManager()' spec='ConfigManager' id='133381783445360'>
 
-self = <MagicMock name='app' spec='Typer' id='133294443393632'>
-args = (['cve', 'upload', '--force'],)
-kwargs = {'prog_name': 'wafrunner', 'standalone_mode': False}
-
-    def assert_called_once_with(self, /, *args, **kwargs):
-        """assert that the mock was called exactly once and that that call was
-        with the specified arguments."""
-        if not self.call_count == 1:
-            msg = ("Expected '%s' to be called once. Called %s times.%s"
-                   % (self._mock_name or 'mock',
-                      self.call_count,
-                      self._calls_repr()))
-            raise AssertionError(msg)
->       return self.assert_called_with(*args, **kwargs)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-E       AssertionError: expected call not found.
-E       Expected: app(['cve', 'upload', '--force'], prog_name='wafrunner', standalone_mode=False)
-E         Actual: app(['cve', 'upload', '--force'], prog_name='wafrunner', standalone_mode=False)
-
-/usr/lib/python3.12/unittest/mock.py:956: AssertionError
-
-During handling of the above exception, another exception occurred:
-
-mock_prompt_session = (<MagicMock id='133294442448656'>, <MagicMock name='PromptSession' id='133294441494384'>)
-mock_main_app = <MagicMock name='app' spec='Typer' id='133294443393632'>
-mock_path_methods = None
-
-    def test_run_shell_executes_command(mock_prompt_session, mock_main_app, mock_path_methods):
-        """
-        Tests that a command entered in the shell is correctly parsed and executed.
-        """
-        mock_session_instance, _ = mock_prompt_session
-        mock_session_instance.prompt.side_effect = ["cve upload --force", "exit"]
+    def test_github_command_force_option_overrides_skip(mock_api_client, mock_config_manager):
+        """Test that the --force flag triggers a search even if one is complete."""
+        mock_api_client.get_vulnerability_record.return_value = {"github_searches": [{"status": "complete"}]}
     
-        run_shell()
+        result = runner.invoke(research_app, ["github", "--vulnid", "VULN-COMPLETED", "--force"])
+        assert result.exit_code == 0
+>       assert "Running in force mode" in result.stdout
+E       AssertionError: assert 'Running in force mode' in ''
+E        +  where '' = <Result okay>.stdout
+
+tests/test_research_commands.py:100: AssertionError
+___________________ test_github_command_collection_not_found ___________________
+
+mock_config_manager = <NonCallableMagicMock name='ConfigManager()' spec='ConfigManager' id='133381783673824'>
+
+    def test_github_command_collection_not_found(mock_config_manager):
+        """Test that 'github' exits if the collection file is not found."""
+        result = runner.invoke(research_app, ["github", "--collection", "non-existent-collection"])
+        assert result.exit_code == 1
+>       assert "Error: Collection 'non-existent-collection' not found" in result.stdout
+E       assert "Error: Collection 'non-existent-collection' not found" in ''
+E        +  where '' = <Result SystemExit(1)>.stdout
+
+tests/test_research_commands.py:108: AssertionError
+_______________________ test_github_auth_error_handling ________________________
+
+mock_api_client = <NonCallableMagicMock name='ApiClient()' spec='ApiClient' id='133381783826176'>
+mock_config_manager = <NonCallableMagicMock name='ConfigManager()' spec='ConfigManager' id='133381785273120'>
+
+    def test_github_auth_error_handling(mock_api_client, mock_config_manager):
+        """Test graceful failure on AuthenticationError."""
+        mock_api_client.get_vulnerability_record.side_effect = AuthenticationError("Invalid API Key")
+        result = runner.invoke(research_app, ["github", "--vulnid", "VULN-123"])
+        assert result.exit_code == 1
+>       assert "API Error: Invalid API Key" in result.stdout
+E       AssertionError: assert 'API Error: Invalid API Key' in ''
+E        +  where '' = <Result SystemExit(1)>.stdout
+
+tests/test_research_commands.py:115: AssertionError
+___________________ test_scrape_command_no_identifier_fails ____________________
+
+    def test_scrape_command_no_identifier_fails():
+        """Test that 'scrape' exits with an error if no identifier is provided."""
+        result = runner.invoke(research_app, ["scrape"])
+        assert result.exit_code == 1
+>       assert "Error: Please provide either a --collection or a --vulnid." in result.stdout
+E       AssertionError: assert 'Error: Please provide either a --collection or a --vulnid.' in ''
+E        +  where '' = <Result SystemExit(1)>.stdout
+
+tests/test_research_commands.py:123: AssertionError
+___________________ test_scrape_command_with_vulnid_succeeds ___________________
+
+mock_api_client = <NonCallableMagicMock name='ApiClient()' spec='ApiClient' id='133381783141552'>
+mock_config_manager = <NonCallableMagicMock name='ConfigManager()' spec='ConfigManager' id='133381783084336'>
+
+    def test_scrape_command_with_vulnid_succeeds(mock_api_client, mock_config_manager):
+        """Test a successful 'scrape' run with a single vulnID."""
+        mock_api_client.get_data_sources.return_value = [
+            {"linkID": "link-1", "scrapedStatus": "new"},
+            {"linkID": "link-2", "scrapedStatus": "pending"},
+        ]
+        result = runner.invoke(research_app, ["scrape", "--vulnid", "VULN-123"])
     
->       mock_main_app.assert_called_once_with(['cve', 'upload', '--force'], prog_name="wafrunner", standalone_mode=False)
-E       AssertionError: expected call not found.
-E       Expected: app(['cve', 'upload', '--force'], prog_name='wafrunner', standalone_mode=False)
-E         Actual: app(['cve', 'upload', '--force'], prog_name='wafrunner', standalone_mode=False)
+        assert result.exit_code == 0
+>       assert "Found 1 vulnerability ID(s) to process for scraping." in result.stdout
+E       AssertionError: assert 'Found 1 vulnerability ID(s) to process for scraping.' in ''
+E        +  where '' = <Result okay>.stdout
 
-tests/test_shell_command.py:122: AssertionError
------------------------------ Captured stdout call -----------------------------
-Welcome to the wafrunner interactive shell.
-Type 'exit' or 'quit' to leave.
+tests/test_research_commands.py:134: AssertionError
+____________ test_scrape_command_skips_completed_and_error_statuses ____________
 
-Exiting wafrunner shell. Goodbye!
-______________________ test_run_shell_handles_system_exit ______________________
-TypeError: too many positional arguments
+mock_api_client = <NonCallableMagicMock name='ApiClient()' spec='ApiClient' id='133381783092832'>
+mock_config_manager = <NonCallableMagicMock name='ConfigManager()' spec='ConfigManager' id='133381783275856'>
 
-The above exception was the direct cause of the following exception:
-
-self = <MagicMock name='app' spec='Typer' id='133294443178960'>
-args = (['cve', '--help'],)
-kwargs = {'prog_name': 'wafrunner', 'standalone_mode': False}
-expected = TypeError('too many positional arguments')
-actual = TypeError('too many positional arguments')
-_error_message = <function NonCallableMock.assert_called_with.<locals>._error_message at 0x793b07d77e20>
-cause = TypeError('too many positional arguments')
-
-    def assert_called_with(self, /, *args, **kwargs):
-        """assert that the last call was made with the specified arguments.
+    def test_scrape_command_skips_completed_and_error_statuses(mock_api_client, mock_config_manager):
+        """Test that 'scrape' correctly skips records with 'complete' or 'error' status."""
+        mock_api_client.get_data_sources.return_value = [
+            {"linkID": "link-1", "scrapedStatus": "new"},
+            {"linkID": "link-2", "scrapedStatus": "complete"},
+            {"linkID": "link-3", "scrapedStatus": "error"},
+            {"linkID": "link-4", "scrapedStatus": "pending"},
+        ]
+        result = runner.invoke(research_app, ["scrape", "--vulnid", "VULN-123"])
     
-        Raises an AssertionError if the args and keyword args passed in are
-        different to the last call to the mock."""
-        if self.call_args is None:
-            expected = self._format_mock_call_signature(args, kwargs)
-            actual = 'not called.'
-            error_message = ('expected call not found.\nExpected: %s\n  Actual: %s'
-                    % (expected, actual))
-            raise AssertionError(error_message)
+        assert result.exit_code == 0
+        # Should only be called for link-1 and link-4
+        assert mock_api_client.trigger_scrape.call_count == 2
+        mock_api_client.trigger_scrape.assert_has_calls([call("VULN-123", "link-1"), call("VULN-123", "link-4")])
+>       assert "Summary for VULN-123: Triggered 2 scrapes, skipped 2 data sources." in result.stdout
+E       AssertionError: assert 'Summary for VULN-123: Triggered 2 scrapes, skipped 2 data sources.' in ''
+E        +  where '' = <Result okay>.stdout
+
+tests/test_research_commands.py:153: AssertionError
+_________________ test_scrape_command_handles_no_data_sources __________________
+
+mock_api_client = <NonCallableMagicMock name='ApiClient()' spec='ApiClient' id='133381785285216'>
+mock_config_manager = <NonCallableMagicMock name='ConfigManager()' spec='ConfigManager' id='133381783870720'>
+
+    def test_scrape_command_handles_no_data_sources(mock_api_client, mock_config_manager):
+        """Test 'scrape' behavior when get_data_sources returns an empty list."""
+        mock_api_client.get_data_sources.return_value = []
+        result = runner.invoke(research_app, ["scrape", "--vulnid", "VULN-123"])
     
-        def _error_message():
-            msg = self._format_mock_failure_message(args, kwargs)
-            return msg
-        expected = self._call_matcher(_Call((args, kwargs), two=True))
-        actual = self._call_matcher(self.call_args)
-        if actual != expected:
-            cause = expected if isinstance(expected, Exception) else None
->           raise AssertionError(_error_message()) from cause
-E           AssertionError: expected call not found.
-E           Expected: app(['cve', '--help'], prog_name='wafrunner', standalone_mode=False)
-E             Actual: app(['cve', '--help'], prog_name='wafrunner', standalone_mode=False)
+        assert result.exit_code == 0
+>       assert "Summary for VULN-123: Triggered 0 scrapes, skipped 0 data sources." in result.stdout
+E       AssertionError: assert 'Summary for VULN-123: Triggered 0 scrapes, skipped 0 data sources.' in ''
+E        +  where '' = <Result okay>.stdout
 
-/usr/lib/python3.12/unittest/mock.py:944: AssertionError
+tests/test_research_commands.py:161: AssertionError
+_________________ test_scrape_command_handles_record_not_found _________________
 
-During handling of the above exception, another exception occurred:
+mock_api_client = <NonCallableMagicMock name='ApiClient()' spec='ApiClient' id='133381783874464'>
+mock_config_manager = <NonCallableMagicMock name='ConfigManager()' spec='ConfigManager' id='133381781984400'>
 
-self = <MagicMock name='app' spec='Typer' id='133294443178960'>
-args = (['cve', '--help'],)
-kwargs = {'prog_name': 'wafrunner', 'standalone_mode': False}
-
-    def assert_called_once_with(self, /, *args, **kwargs):
-        """assert that the mock was called exactly once and that that call was
-        with the specified arguments."""
-        if not self.call_count == 1:
-            msg = ("Expected '%s' to be called once. Called %s times.%s"
-                   % (self._mock_name or 'mock',
-                      self.call_count,
-                      self._calls_repr()))
-            raise AssertionError(msg)
->       return self.assert_called_with(*args, **kwargs)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-E       AssertionError: expected call not found.
-E       Expected: app(['cve', '--help'], prog_name='wafrunner', standalone_mode=False)
-E         Actual: app(['cve', '--help'], prog_name='wafrunner', standalone_mode=False)
-
-/usr/lib/python3.12/unittest/mock.py:956: AssertionError
-
-During handling of the above exception, another exception occurred:
-
-mock_prompt_session = (<MagicMock id='133294441505296'>, <MagicMock name='PromptSession' id='133294443168688'>)
-mock_main_app = <MagicMock name='app' spec='Typer' id='133294443178960'>
-mock_path_methods = None
-
-    def test_run_shell_handles_system_exit(mock_prompt_session, mock_main_app, mock_path_methods):
-        """
-        Tests that the shell catches SystemExit (e.g., from --help) and continues running.
-        """
-        mock_session_instance, _ = mock_prompt_session
-        mock_session_instance.prompt.side_effect = ["cve --help", "exit"]
-        mock_main_app.side_effect = SystemExit(0)
+    def test_scrape_command_handles_record_not_found(mock_api_client, mock_config_manager):
+        """Test 'scrape' behavior when get_data_sources returns None (e.g., 404)."""
+        mock_api_client.get_data_sources.return_value = None
+        result = runner.invoke(research_app, ["scrape", "--vulnid", "VULN-NOT-FOUND"])
     
-        run_shell()
+        assert result.exit_code == 0
+>       assert "Info: No data sources found for VULN-NOT-FOUND" in result.stdout
+E       AssertionError: assert 'Info: No data sources found for VULN-NOT-FOUND' in ''
+E        +  where '' = <Result okay>.stdout
+
+tests/test_research_commands.py:170: AssertionError
+______________ test_scrape_command_handles_record_missing_linkid _______________
+
+mock_api_client = <NonCallableMagicMock name='ApiClient()' spec='ApiClient' id='133381797041872'>
+mock_config_manager = <NonCallableMagicMock name='ConfigManager()' spec='ConfigManager' id='133381783865872'>
+
+    def test_scrape_command_handles_record_missing_linkid(mock_api_client, mock_config_manager):
+        """Test 'scrape' skips records that are missing a linkID."""
+        mock_api_client.get_data_sources.return_value = [{"scrapedStatus": "new"}] # No linkID
+        result = runner.invoke(research_app, ["scrape", "--vulnid", "VULN-123"])
     
-        assert mock_session_instance.prompt.call_count == 2
->       mock_main_app.assert_called_once_with(['cve', '--help'], prog_name="wafrunner", standalone_mode=False)
-E       AssertionError: expected call not found.
-E       Expected: app(['cve', '--help'], prog_name='wafrunner', standalone_mode=False)
-E         Actual: app(['cve', '--help'], prog_name='wafrunner', standalone_mode=False)
+        assert result.exit_code == 0
+>       assert "Warning: Skipping record for VULN-123 due to missing linkID." in result.stdout
+E       AssertionError: assert 'Warning: Skipping record for VULN-123 due to missing linkID.' in ''
+E        +  where '' = <Result okay>.stdout
 
-tests/test_shell_command.py:136: AssertionError
------------------------------ Captured stdout call -----------------------------
-Welcome to the wafrunner interactive shell.
-Type 'exit' or 'quit' to leave.
+tests/test_research_commands.py:179: AssertionError
+_________________ test_scrape_command_handles_trigger_failure __________________
 
-Exiting wafrunner shell. Goodbye!
+mock_api_client = <NonCallableMagicMock name='ApiClient()' spec='ApiClient' id='133381783714800'>
+mock_config_manager = <NonCallableMagicMock name='ConfigManager()' spec='ConfigManager' id='133381783276240'>
+
+    def test_scrape_command_handles_trigger_failure(mock_api_client, mock_config_manager):
+        """Test 'scrape' logs a message if the API call to trigger a scrape fails."""
+        mock_api_client.get_data_sources.return_value = [{"linkID": "link-1", "scrapedStatus": "new"}]
+        mock_api_client.trigger_scrape.return_value = False # Simulate failure
+        result = runner.invoke(research_app, ["scrape", "--vulnid", "VULN-123"])
+    
+        assert result.exit_code == 0
+>       assert "Failed to trigger scrape for linkID: link-1" in result.stdout
+E       AssertionError: assert 'Failed to trigger scrape for linkID: link-1' in ''
+E        +  where '' = <Result okay>.stdout
+
+tests/test_research_commands.py:190: AssertionError
+_______________________ test_scrape_auth_error_handling ________________________
+
+mock_api_client = <NonCallableMagicMock name='ApiClient()' spec='ApiClient' id='133381783202816'>
+mock_config_manager = <NonCallableMagicMock name='ConfigManager()' spec='ConfigManager' id='133381781971040'>
+
+    def test_scrape_auth_error_handling(mock_api_client, mock_config_manager):
+        """Test graceful failure on AuthenticationError during 'scrape'."""
+        mock_api_client.get_data_sources.side_effect = AuthenticationError("Invalid API Key")
+        result = runner.invoke(research_app, ["scrape", "--vulnid", "VULN-123"])
+        assert result.exit_code == 1
+>       assert "API Error: Invalid API Key" in result.stdout
+E       AssertionError: assert 'API Error: Invalid API Key' in ''
+E        +  where '' = <Result SystemExit(1)>.stdout
+
+tests/test_research_commands.py:199: AssertionError
 =========================== short test summary info ============================
+FAILED tests/test_collection_commands.py::test_collection_list - AssertionErr...
 FAILED tests/test_cve_download_update.py::test_download_no_update_file_exists_valid
 FAILED tests/test_cve_download_update.py::test_download_no_update_file_exists_invalid
 FAILED tests/test_cve_download_update.py::test_download_update_file_exists_valid
-FAILED tests/test_cve_download_update.py::test_download_no_update_file_does_not_exist
-FAILED tests/test_cve_download_update.py::test_download_update_file_does_not_exist
 FAILED tests/test_cve_download_update.py::test_is_error_file_total_mismatch
 FAILED tests/test_cve_download_update.py::test_is_error_file_empty_results - ...
 FAILED tests/test_cve_upload_tracking.py::test_upload_api_error_not_tracked
 FAILED tests/test_cve_upload_tracking.py::test_upload_skipped_missing_cveid
-FAILED tests/test_shell_command.py::test_run_shell_initialization - Attribute...
-FAILED tests/test_shell_command.py::test_run_shell_executes_command - Asserti...
-FAILED tests/test_shell_command.py::test_run_shell_handles_system_exit - Asse...
-======================== 12 failed, 46 passed in 0.75s =========================
+FAILED tests/test_research_commands.py::test_github_command_no_identifier_fails
+FAILED tests/test_research_commands.py::test_github_command_both_identifiers_fail
+FAILED tests/test_research_commands.py::test_github_command_with_vulnid_succeeds
+FAILED tests/test_research_commands.py::test_github_command_with_collection_succeeds
+FAILED tests/test_research_commands.py::test_github_command_skips_completed_searches
+FAILED tests/test_research_commands.py::test_github_command_force_option_overrides_skip
+FAILED tests/test_research_commands.py::test_github_command_collection_not_found
+FAILED tests/test_research_commands.py::test_github_auth_error_handling - Ass...
+FAILED tests/test_research_commands.py::test_scrape_command_no_identifier_fails
+FAILED tests/test_research_commands.py::test_scrape_command_with_vulnid_succeeds
+FAILED tests/test_research_commands.py::test_scrape_command_skips_completed_and_error_statuses
+FAILED tests/test_research_commands.py::test_scrape_command_handles_no_data_sources
+FAILED tests/test_research_commands.py::test_scrape_command_handles_record_not_found
+FAILED tests/test_research_commands.py::test_scrape_command_handles_record_missing_linkid
+FAILED tests/test_research_commands.py::test_scrape_command_handles_trigger_failure
+FAILED tests/test_research_commands.py::test_scrape_auth_error_handling - Ass...
+======================== 24 failed, 46 passed in 0.85s =========================
