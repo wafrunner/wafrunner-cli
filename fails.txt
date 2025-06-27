@@ -1,0 +1,587 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-8.4.1, pluggy-1.6.0
+rootdir: /home/sam/Engineering/wafrunner/wafrunner-cli
+configfile: pyproject.toml
+plugins: anyio-4.9.0, mock-3.14.1, cov-6.2.1
+collected 50 items
+
+tests/test_api_client.py .FF......                                       [ 18%]
+tests/test_collection_commands.py .........                              [ 36%]
+tests/test_config_manager.py ..                                          [ 40%]
+tests/test_cve_download_range.py ........F                               [ 58%]
+tests/test_cve_download_update.py FFFFF...FF.                            [ 80%]
+tests/test_cve_upload_tracking.py ......                                 [ 92%]
+tests/test_research_commands.py ....                                     [100%]
+
+=================================== FAILURES ===================================
+_________________________ test_api_client_get_success __________________________
+
+self = <MagicMock name='request' id='133032139303456'>
+args = ('GET', 'http://localhost:8000/api/v1/test-endpoint')
+kwargs = {'params': None, 'timeout': 30.0}
+expected = call('GET', 'http://localhost:8000/api/v1/test-endpoint', params=None, timeout=30.0)
+actual = call('GET', '/test-endpoint', params=None)
+_error_message = <function NonCallableMock.assert_called_with.<locals>._error_message at 0x78fdf60511c0>
+cause = None
+
+    def assert_called_with(self, /, *args, **kwargs):
+        """assert that the last call was made with the specified arguments.
+    
+        Raises an AssertionError if the args and keyword args passed in are
+        different to the last call to the mock."""
+        if self.call_args is None:
+            expected = self._format_mock_call_signature(args, kwargs)
+            actual = 'not called.'
+            error_message = ('expected call not found.\nExpected: %s\n  Actual: %s'
+                    % (expected, actual))
+            raise AssertionError(error_message)
+    
+        def _error_message():
+            msg = self._format_mock_failure_message(args, kwargs)
+            return msg
+        expected = self._call_matcher(_Call((args, kwargs), two=True))
+        actual = self._call_matcher(self.call_args)
+        if actual != expected:
+            cause = expected if isinstance(expected, Exception) else None
+>           raise AssertionError(_error_message()) from cause
+E           AssertionError: expected call not found.
+E           Expected: request('GET', 'http://localhost:8000/api/v1/test-endpoint', params=None, timeout=30.0)
+E             Actual: request('GET', '/test-endpoint', params=None)
+
+/usr/lib/python3.12/unittest/mock.py:944: AssertionError
+
+During handling of the above exception, another exception occurred:
+
+self = <MagicMock name='request' id='133032139303456'>
+args = ('GET', 'http://localhost:8000/api/v1/test-endpoint')
+kwargs = {'params': None, 'timeout': 30.0}
+
+    def assert_called_once_with(self, /, *args, **kwargs):
+        """assert that the mock was called exactly once and that that call was
+        with the specified arguments."""
+        if not self.call_count == 1:
+            msg = ("Expected '%s' to be called once. Called %s times.%s"
+                   % (self._mock_name or 'mock',
+                      self.call_count,
+                      self._calls_repr()))
+            raise AssertionError(msg)
+>       return self.assert_called_with(*args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: expected call not found.
+E       Expected: request('GET', 'http://localhost:8000/api/v1/test-endpoint', params=None, timeout=30.0)
+E         Actual: request('GET', '/test-endpoint', params=None)
+E       
+E       pytest introspection follows:
+E       
+E       Args:
+E       assert ('GET', '/test-endpoint') == ('GET', 'http...est-endpoint')
+E         
+E         At index 1 diff: '/test-endpoint' != 'http://localhost:8000/api/v1/test-endpoint'
+E         Use -v to get more diff
+E       Kwargs:
+E       assert {'params': None} == {'params': No...imeout': 30.0}
+E         
+E         Omitting 1 identical items, use -vv to show
+E         Right contains 1 more item:
+E         {'timeout': 30.0}
+E         Use -v to get more diff
+
+/usr/lib/python3.12/unittest/mock.py:956: AssertionError
+
+During handling of the above exception, another exception occurred:
+
+mocker = <pytest_mock.plugin.MockerFixture object at 0x78fdf565fd40>
+
+    def test_api_client_get_success(mocker):
+        """
+        Verify that a successful GET request returns the expected JSON data.
+        """
+        # Arrange: Mock a valid token and a successful httpx response
+        mocker.patch(
+            "wafrunner_cli.core.api_client.ConfigManager.load_token",
+            return_value="fake-token",
+        )
+        mock_response = mocker.Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"data": "success"}
+    
+        # We now mock the internal _request method for simplicity in some tests
+        # Mock the underlying httpx.Client.request directly for more control
+        mock_httpx_request = mocker.patch("wafrunner_cli.core.api_client.httpx.Client.request")
+        mock_httpx_request.return_value = mock_response
+    
+        # Act
+        api_client = ApiClient()
+        result = api_client.get("/test-endpoint")
+    
+        # Assert
+        assert result.status_code == 200
+        assert result.json() == {"data": "success"}
+>       mock_httpx_request.assert_called_once_with("GET", "http://localhost:8000/api/v1/test-endpoint", params=None, timeout=30.0)
+E       AssertionError: expected call not found.
+E       Expected: request('GET', 'http://localhost:8000/api/v1/test-endpoint', params=None, timeout=30.0)
+E         Actual: request('GET', '/test-endpoint', params=None)
+E       
+E       pytest introspection follows:
+E       
+E       Args:
+E       assert ('GET', '/test-endpoint') == ('GET', 'http...est-endpoint')
+E         
+E         At index 1 diff: '/test-endpoint' != 'http://localhost:8000/api/v1/test-endpoint'
+E         Use -v to get more diff
+E       Kwargs:
+E       assert {'params': None} == {'params': No...imeout': 30.0}
+E         
+E         Omitting 1 identical items, use -vv to show
+E         Right contains 1 more item:
+E         {'timeout': 30.0}
+E         Use -v to get more diff
+
+tests/test_api_client.py:48: AssertionError
+__________________ test_api_client_get_not_found_returns_none __________________
+
+self = <MagicMock name='request' id='133032138198864'>
+args = ('GET', 'http://localhost:8000/api/v1/not-found-endpoint')
+kwargs = {'params': None, 'timeout': 30.0}
+expected = call('GET', 'http://localhost:8000/api/v1/not-found-endpoint', params=None, timeout=30.0)
+actual = call('GET', '/not-found-endpoint', params=None)
+_error_message = <function NonCallableMock.assert_called_with.<locals>._error_message at 0x78fdf5543a60>
+cause = None
+
+    def assert_called_with(self, /, *args, **kwargs):
+        """assert that the last call was made with the specified arguments.
+    
+        Raises an AssertionError if the args and keyword args passed in are
+        different to the last call to the mock."""
+        if self.call_args is None:
+            expected = self._format_mock_call_signature(args, kwargs)
+            actual = 'not called.'
+            error_message = ('expected call not found.\nExpected: %s\n  Actual: %s'
+                    % (expected, actual))
+            raise AssertionError(error_message)
+    
+        def _error_message():
+            msg = self._format_mock_failure_message(args, kwargs)
+            return msg
+        expected = self._call_matcher(_Call((args, kwargs), two=True))
+        actual = self._call_matcher(self.call_args)
+        if actual != expected:
+            cause = expected if isinstance(expected, Exception) else None
+>           raise AssertionError(_error_message()) from cause
+E           AssertionError: expected call not found.
+E           Expected: request('GET', 'http://localhost:8000/api/v1/not-found-endpoint', params=None, timeout=30.0)
+E             Actual: request('GET', '/not-found-endpoint', params=None)
+
+/usr/lib/python3.12/unittest/mock.py:944: AssertionError
+
+During handling of the above exception, another exception occurred:
+
+self = <MagicMock name='request' id='133032138198864'>
+args = ('GET', 'http://localhost:8000/api/v1/not-found-endpoint')
+kwargs = {'params': None, 'timeout': 30.0}
+
+    def assert_called_once_with(self, /, *args, **kwargs):
+        """assert that the mock was called exactly once and that that call was
+        with the specified arguments."""
+        if not self.call_count == 1:
+            msg = ("Expected '%s' to be called once. Called %s times.%s"
+                   % (self._mock_name or 'mock',
+                      self.call_count,
+                      self._calls_repr()))
+            raise AssertionError(msg)
+>       return self.assert_called_with(*args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: expected call not found.
+E       Expected: request('GET', 'http://localhost:8000/api/v1/not-found-endpoint', params=None, timeout=30.0)
+E         Actual: request('GET', '/not-found-endpoint', params=None)
+E       
+E       pytest introspection follows:
+E       
+E       Args:
+E       assert ('GET', '/not-found-endpoint') == ('GET', 'http...und-endpoint')
+E         
+E         At index 1 diff: '/not-found-endpoint' != 'http://localhost:8000/api/v1/not-found-endpoint'
+E         Use -v to get more diff
+E       Kwargs:
+E       assert {'params': None} == {'params': No...imeout': 30.0}
+E         
+E         Omitting 1 identical items, use -vv to show
+E         Right contains 1 more item:
+E         {'timeout': 30.0}
+E         Use -v to get more diff
+
+/usr/lib/python3.12/unittest/mock.py:956: AssertionError
+
+During handling of the above exception, another exception occurred:
+
+mocker = <pytest_mock.plugin.MockerFixture object at 0x78fdf55740b0>
+
+    def test_api_client_get_not_found_returns_none(mocker):
+        """
+        Verify that a 404 response from a GET request returns None without raising an error.
+        """
+        mocker.patch(
+            "wafrunner_cli.core.api_client.ConfigManager.load_token",
+            return_value="fake-token",
+        )
+        mock_response = mocker.Mock()
+        mock_response.status_code = 404
+    
+        mock_httpx_request = mocker.patch("wafrunner_cli.core.api_client.httpx.Client.request")
+        mock_httpx_request.return_value = mock_response
+    
+        # Act
+        api_client = ApiClient()
+        result = api_client.get("/not-found-endpoint")
+    
+        # Assert
+        assert result.status_code == 404
+        # No need to assert json() as it might not be valid for 404
+>       mock_httpx_request.assert_called_once_with("GET", "http://localhost:8000/api/v1/not-found-endpoint", params=None, timeout=30.0)
+E       AssertionError: expected call not found.
+E       Expected: request('GET', 'http://localhost:8000/api/v1/not-found-endpoint', params=None, timeout=30.0)
+E         Actual: request('GET', '/not-found-endpoint', params=None)
+E       
+E       pytest introspection follows:
+E       
+E       Args:
+E       assert ('GET', '/not-found-endpoint') == ('GET', 'http...und-endpoint')
+E         
+E         At index 1 diff: '/not-found-endpoint' != 'http://localhost:8000/api/v1/not-found-endpoint'
+E         Use -v to get more diff
+E       Kwargs:
+E       assert {'params': None} == {'params': No...imeout': 30.0}
+E         
+E         Omitting 1 identical items, use -vv to show
+E         Right contains 1 more item:
+E         {'timeout': 30.0}
+E         Use -v to get more diff
+
+tests/test_api_client.py:72: AssertionError
+________________ test_download_cves_for_range_io_error_on_save _________________
+
+self = <MagicMock name='print' id='133032132859792'>
+args = ('[bold red]File Error:[/bold red] Could not write to /tmp/test_cve_chunk.json: Disk full[bold red]',)
+kwargs = {}
+expected = call('[bold red]File Error:[/bold red] Could not write to /tmp/test_cve_chunk.json: Disk full[bold red]')
+cause = None
+actual = [call('Downloading CVEs from 2023-01-01T00:00:00.000Z to 2023-04-30T23:59:59.999Z...'), call('[bold red]File Error:[/bold red] Could not write to /tmp/test_cve_chunk.json: Disk full')]
+expected_string = "print('[bold red]File Error:[/bold red] Could not write to /tmp/test_cve_chunk.json: Disk full[bold red]')"
+
+    def assert_any_call(self, /, *args, **kwargs):
+        """assert the mock has been called with the specified arguments.
+    
+        The assert passes if the mock has *ever* been called, unlike
+        `assert_called_with` and `assert_called_once_with` that only pass if
+        the call is the most recent one."""
+        expected = self._call_matcher(_Call((args, kwargs), two=True))
+        cause = expected if isinstance(expected, Exception) else None
+        actual = [self._call_matcher(c) for c in self.call_args_list]
+        if cause or expected not in _AnyComparer(actual):
+            expected_string = self._format_mock_call_signature(args, kwargs)
+>           raise AssertionError(
+                '%s call not found' % expected_string
+            ) from cause
+E           AssertionError: print('[bold red]File Error:[/bold red] Could not write to /tmp/test_cve_chunk.json: Disk full[bold red]') call not found
+
+/usr/lib/python3.12/unittest/mock.py:1015: AssertionError
+
+During handling of the above exception, another exception occurred:
+
+mocker = <pytest_mock.plugin.MockerFixture object at 0x78fdf5010d70>
+mock_httpx_client_instance = <MagicMock spec='Client' id='133032132545808'>
+mock_overall_progress = <MagicMock id='133032132542592'>
+mock_overall_task_id = <MagicMock id='133032159990976'>
+mock_fetch_nist_page = <MagicMock name='fetch_nist_page' id='133032132748704'>
+mock_json_dump = <MagicMock name='dump' id='133032132740880'>
+mock_time_sleep = <MagicMock name='sleep' id='133032132867664'>
+mock_rich_print = <MagicMock name='print' id='133032132859792'>
+
+    def test_download_cves_for_range_io_error_on_save(
+        mocker,
+        mock_httpx_client_instance, mock_overall_progress, mock_overall_task_id,
+        mock_fetch_nist_page, mock_json_dump, mock_time_sleep, mock_rich_print
+    ):
+        """Test handling of IOError when saving the file."""
+        mock_fetch_nist_page.return_value = create_mock_nist_response(10, 10, 0)
+        mock_json_dump.side_effect = IOError("Disk full")
+    
+        download_cves_for_range(
+            mock_httpx_client_instance, TEST_START_DATE, TEST_END_DATE,
+            TEST_OUTPUT_FILE, mock_overall_progress, mock_overall_task_id
+        )
+    
+        mock_rich_print.assert_any_call(f"Downloading CVEs from {TEST_START_DATE} to {TEST_END_DATE}...")
+        mock_json_dump.assert_called_once()
+>       mock_rich_print.assert_any_call(f"[bold red]File Error:[/bold red] Could not write to {TEST_OUTPUT_FILE}: Disk full[bold red]")
+E       AssertionError: print('[bold red]File Error:[/bold red] Could not write to /tmp/test_cve_chunk.json: Disk full[bold red]') call not found
+E       
+E       pytest introspection follows:
+E       
+E       Args:
+E       assert ('[bold red]F...: Disk full',) == ('[bold red]F...l[bold red]',)
+E         
+E         At index 0 diff: '[bold red]File Error:[/bold red] Could not write to /tmp/test_cve_chunk.json: Disk full' != '[bold red]File Error:[/bold red] Could not write to /tmp/test_cve_chunk.json: Disk full[bold red]'
+E         Use -v to get more diff
+
+tests/test_cve_download_range.py:324: AssertionError
+__________________ test_download_no_update_file_exists_valid ___________________
+
+mock_path_methods = (<MagicMock name='exists' id='133032132753024'>, <MagicMock name='mkdir' id='133032137098208'>)
+mock_json_io = (<MagicMock name='load' id='133032136448704'>, <MagicMock name='dump' id='133032136449712'>)
+mock_time_sleep = <MagicMock name='sleep' id='133032138099696'>
+mock_download_cves_for_range = <MagicMock name='download_cves_for_range' id='133032136832544'>
+mock_is_error_file_func = <MagicMock name='is_error_file' id='133032136824480'>
+mock_progress = <MagicMock id='133032136527360'>
+mock_httpx_client = <MagicMock id='133032136690720'>
+
+    def test_download_no_update_file_exists_valid(
+        mock_path_methods, mock_json_io, mock_time_sleep, mock_download_cves_for_range, mock_is_error_file_func, mock_progress, mock_httpx_client
+    ):
+        """
+        Test download command when --update is False, file exists and is valid.
+        Should skip download.
+        """
+        mock_path_methods[0].return_value = True  # Path.exists returns True
+        mock_is_error_file_func.return_value = False  # File is not an error file
+    
+        year = 2023
+        result = runner.invoke(cve_app, ["download", "--year", str(year)])
+    
+        assert result.exit_code == 0
+>       assert "already exists and appears valid. Skipping." in result.stdout
+E       AssertionError: assert 'already exists and appears valid. Skipping.' in 'Initializing CVE download for 2023...\nFile nvd-cves-2023-1.json is valid. Skipping.\nFile nvd-cves-2023-2.json is va...-cves-2023-3.json is valid. Skipping.\nFile nvd-cves-2023-4.json is valid. Skipping.\n\n✔ Download process finished.\n'
+E        +  where 'Initializing CVE download for 2023...\nFile nvd-cves-2023-1.json is valid. Skipping.\nFile nvd-cves-2023-2.json is va...-cves-2023-3.json is valid. Skipping.\nFile nvd-cves-2023-4.json is valid. Skipping.\n\n✔ Download process finished.\n' = <Result okay>.stdout
+
+tests/test_cve_download_update.py:84: AssertionError
+_________________ test_download_no_update_file_exists_invalid __________________
+
+mock_path_methods = (<MagicMock name='exists' id='133032136458160'>, <MagicMock name='mkdir' id='133032132910720'>)
+mock_json_io = (<MagicMock name='load' id='133032132918832'>, <MagicMock name='dump' id='133032132218176'>)
+mock_time_sleep = <MagicMock name='sleep' id='133032136486032'>
+mock_download_cves_for_range = <MagicMock name='download_cves_for_range' id='133032136694800'>
+mock_is_error_file_func = <MagicMock name='is_error_file' id='133032136865120'>
+mock_progress = <MagicMock id='133032135235184'>
+mock_httpx_client = <MagicMock id='133032135230096'>
+
+    def test_download_no_update_file_exists_invalid(
+        mock_path_methods, mock_json_io, mock_time_sleep, mock_download_cves_for_range, mock_is_error_file_func, mock_progress, mock_httpx_client
+    ):
+        """
+        Test download command when --update is False, file exists but is invalid.
+        Should re-download.
+        """
+        mock_path_methods[0].return_value = True  # Path.exists returns True
+        mock_is_error_file_func.return_value = True  # File is an error file
+    
+        year = 2023
+        result = runner.invoke(cve_app, ["download", "--year", str(year)])
+    
+        assert result.exit_code == 0
+>       assert "exists but is incomplete or has errors." in result.stdout
+E       AssertionError: assert 'exists but is incomplete or has errors.' in 'Initializing CVE download for 2023...\n\n✔ Download process finished.\n'
+E        +  where 'Initializing CVE download for 2023...\n\n✔ Download process finished.\n' = <Result okay>.stdout
+
+tests/test_cve_download_update.py:102: AssertionError
+____________________ test_download_update_file_exists_valid ____________________
+
+mock_path_methods = (<MagicMock name='exists' id='133032132914704'>, <MagicMock name='mkdir' id='133032132688064'>)
+mock_json_io = (<MagicMock name='load' id='133032132188192'>, <MagicMock name='dump' id='133032132192032'>)
+mock_time_sleep = <MagicMock name='sleep' id='133032132269104'>
+mock_download_cves_for_range = <MagicMock name='download_cves_for_range' id='133032132276688'>
+mock_is_error_file_func = <MagicMock name='is_error_file' id='133032132619072'>
+mock_progress = <MagicMock id='133032132615040'>
+mock_httpx_client = <MagicMock id='133032133118528'>
+
+    def test_download_update_file_exists_valid(
+        mock_path_methods, mock_json_io, mock_time_sleep, mock_download_cves_for_range, mock_is_error_file_func, mock_progress, mock_httpx_client
+    ):
+        """
+        Test download command when --update is True, file exists and is valid.
+        Should re-download.
+        """
+        mock_path_methods[0].return_value = True  # Path.exists returns True
+        mock_is_error_file_func.return_value = False  # File is not an error file (this call still happens but is ignored for decision)
+    
+        year = 2023
+        result = runner.invoke(cve_app, ["download", "--year", str(year), "--update"])
+    
+        assert result.exit_code == 0
+>       assert "Data will be saved to" in result.stdout # Initial message
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: assert 'Data will be saved to' in 'Initializing CVE download for 2023...\n\n✔ Download process finished.\n'
+E        +  where 'Initializing CVE download for 2023...\n\n✔ Download process finished.\n' = <Result okay>.stdout
+
+tests/test_cve_download_update.py:122: AssertionError
+_________________ test_download_no_update_file_does_not_exist __________________
+
+mock_path_methods = (<MagicMock name='exists' id='133032132184160'>, <MagicMock name='mkdir' id='133032130164832'>)
+mock_json_io = (<MagicMock name='load' id='133032130074560'>, <MagicMock name='dump' id='133032130078400'>)
+mock_time_sleep = <MagicMock name='sleep' id='133032130122704'>
+mock_download_cves_for_range = <MagicMock name='download_cves_for_range' id='133032130130288'>
+mock_is_error_file_func = <MagicMock name='is_error_file' id='133032130429104'>
+mock_progress = <MagicMock id='133032130436160'>
+mock_httpx_client = <MagicMock id='133032133127600'>
+
+    def test_download_no_update_file_does_not_exist(
+        mock_path_methods, mock_json_io, mock_time_sleep, mock_download_cves_for_range, mock_is_error_file_func, mock_progress, mock_httpx_client
+    ):
+        """
+        Test download command when --update is False, file does not exist.
+        Should download.
+        """
+        mock_path_methods[0].return_value = False  # Path.exists returns False
+    
+        year = 2023
+        result = runner.invoke(cve_app, ["download", "--year", str(year)])
+    
+        assert result.exit_code == 0
+>       assert "Data will be saved to" in result.stdout # Initial message
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: assert 'Data will be saved to' in 'Initializing CVE download for 2023...\n\n✔ Download process finished.\n'
+E        +  where 'Initializing CVE download for 2023...\n\n✔ Download process finished.\n' = <Result okay>.stdout
+
+/home/sam/Engineering/wafrunner/wafrunner-cli/tests/test_cve_download_update.py:141: AssertionError
+___________________ test_download_update_file_does_not_exist ___________________
+
+mock_path_methods = (<MagicMock name='exists' id='133032130070672'>, <MagicMock name='mkdir' id='133032130342368'>)
+mock_json_io = (<MagicMock name='load' id='133032130399456'>, <MagicMock name='dump' id='133032130403296'>)
+mock_time_sleep = <MagicMock name='sleep' id='133032130480368'>
+mock_download_cves_for_range = <MagicMock name='download_cves_for_range' id='133032130487952'>
+mock_is_error_file_func = <MagicMock name='is_error_file' id='133032130265792'>
+mock_progress = <MagicMock id='133032130269104'>
+mock_httpx_client = <MagicMock id='133032130613312'>
+
+    def test_download_update_file_does_not_exist(
+        mock_path_methods, mock_json_io, mock_time_sleep, mock_download_cves_for_range, mock_is_error_file_func, mock_progress, mock_httpx_client
+    ):
+        """
+        Test download command when --update is True, file does not exist.
+        Should download.
+        """
+        mock_path_methods[0].return_value = False  # Path.exists returns False
+    
+        year = 2023
+        result = runner.invoke(cve_app, ["download", "--year", str(year), "--update"])
+    
+        assert result.exit_code == 0
+>       assert "Data will be saved to" in result.stdout # Initial message
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: assert 'Data will be saved to' in 'Initializing CVE download for 2023...\n\n✔ Download process finished.\n'
+E        +  where 'Initializing CVE download for 2023...\n\n✔ Download process finished.\n' = <Result okay>.stdout
+
+/home/sam/Engineering/wafrunner/wafrunner-cli/tests/test_cve_download_update.py:159: AssertionError
+______________________ test_is_error_file_total_mismatch _______________________
+
+self = <MagicMock name='print' id='133032130689216'>
+args = ('[yellow]File mismatch.json has totalResults=10 but contains 1 vulnerabilities. Flagging for re-download.[/yellow]',)
+kwargs = {}
+expected = call('[yellow]File mismatch.json has totalResults=10 but contains 1 vulnerabilities. Flagging for re-download.[/yellow]')
+actual = call('[yellow]File mismatch.json has mismatched counts. Flagging for re-download.[/yellow]')
+_error_message = <function NonCallableMock.assert_called_with.<locals>._error_message at 0x78fdf5056ac0>
+cause = None
+
+    def assert_called_with(self, /, *args, **kwargs):
+        """assert that the last call was made with the specified arguments.
+    
+        Raises an AssertionError if the args and keyword args passed in are
+        different to the last call to the mock."""
+        if self.call_args is None:
+            expected = self._format_mock_call_signature(args, kwargs)
+            actual = 'not called.'
+            error_message = ('expected call not found.\nExpected: %s\n  Actual: %s'
+                    % (expected, actual))
+            raise AssertionError(error_message)
+    
+        def _error_message():
+            msg = self._format_mock_failure_message(args, kwargs)
+            return msg
+        expected = self._call_matcher(_Call((args, kwargs), two=True))
+        actual = self._call_matcher(self.call_args)
+        if actual != expected:
+            cause = expected if isinstance(expected, Exception) else None
+>           raise AssertionError(_error_message()) from cause
+E           AssertionError: expected call not found.
+E           Expected: print('[yellow]File mismatch.json has totalResults=10 but contains 1 vulnerabilities. Flagging for re-download.[/yellow]')
+E             Actual: print('[yellow]File mismatch.json has mismatched counts. Flagging for re-download.[/yellow]')
+
+/usr/lib/python3.12/unittest/mock.py:944: AssertionError
+
+During handling of the above exception, another exception occurred:
+
+mocker = <pytest_mock.plugin.MockerFixture object at 0x78fdf4e79550>
+
+    def test_is_error_file_total_mismatch(mocker):
+        """Test is_error_file with totalResults not matching actual vulnerabilities count."""
+        mock_open = mocker.patch("builtins.open", mocker.mock_open(read_data=json.dumps({"download_status": "complete", "totalResults": 10, "vulnerabilities": [{"cve": {"id": "CVE-2023-1234"}}]})))
+        mock_print = mocker.patch("wafrunner_cli.commands.cve.print")
+        assert is_error_file(Path("mismatch.json")) is True
+>       mock_print.assert_called_with(
+            "[yellow]File mismatch.json has totalResults=10 but contains 1 vulnerabilities. Flagging for re-download.[/yellow]"
+        )
+E       AssertionError: expected call not found.
+E       Expected: print('[yellow]File mismatch.json has totalResults=10 but contains 1 vulnerabilities. Flagging for re-download.[/yellow]')
+E         Actual: print('[yellow]File mismatch.json has mismatched counts. Flagging for re-download.[/yellow]')
+E       
+E       pytest introspection follows:
+E       
+E       Args:
+E       assert ('[yellow]Fil...d.[/yellow]',) == ('[yellow]Fil...d.[/yellow]',)
+E         
+E         At index 0 diff: '[yellow]File mismatch.json has mismatched counts. Flagging for re-download.[/yellow]' != '[yellow]File mismatch.json has totalResults=10 but contains 1 vulnerabilities. Flagging for re-download.[/yellow]'
+E         Use -v to get more diff
+
+tests/test_cve_download_update.py:207: AssertionError
+_______________________ test_is_error_file_empty_results _______________________
+
+self = <MagicMock name='print' id='133032130521728'>
+
+    def assert_not_called(self):
+        """assert that the mock was never called.
+        """
+        if self.call_count != 0:
+            msg = ("Expected '%s' to not have been called. Called %s times.%s"
+                   % (self._mock_name or 'mock',
+                      self.call_count,
+                      self._calls_repr()))
+>           raise AssertionError(msg)
+E           AssertionError: Expected 'print' to not have been called. Called 1 times.
+E           Calls: [call("[yellow]File empty.json has download status 'unknown'. Flagging for re-download.[/yellow]")].
+
+/usr/lib/python3.12/unittest/mock.py:905: AssertionError
+
+During handling of the above exception, another exception occurred:
+
+mocker = <pytest_mock.plugin.MockerFixture object at 0x78fdf4e41370>
+
+    def test_is_error_file_empty_results(mocker):
+        """Test is_error_file with totalResults 0 and empty vulnerabilities."""
+        mock_open = mocker.patch("builtins.open", mocker.mock_open(read_data=json.dumps({"totalResults": 0, "vulnerabilities": []})))
+        mock_print = mocker.patch("wafrunner_cli.commands.cve.print")
+        assert is_error_file(Path("empty.json")) is True
+        # No warning for this specific case, as it's a valid "no results" scenario that still needs re-checking
+>       mock_print.assert_not_called()
+E       AssertionError: Expected 'print' to not have been called. Called 1 times.
+E       Calls: [call("[yellow]File empty.json has download status 'unknown'. Flagging for re-download.[/yellow]")].
+E       
+E       pytest introspection follows:
+E       
+E       Args:
+E       assert ('[yellow]Fil...d.[/yellow]',) == ()
+E         
+E         Left contains one more item: "[yellow]File empty.json has download status 'unknown'. Flagging for re-download.[/yellow]"
+E         Use -v to get more diff
+
+tests/test_cve_download_update.py:217: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_api_client.py::test_api_client_get_success - AssertionError...
+FAILED tests/test_api_client.py::test_api_client_get_not_found_returns_none
+FAILED tests/test_cve_download_range.py::test_download_cves_for_range_io_error_on_save
+FAILED tests/test_cve_download_update.py::test_download_no_update_file_exists_valid
+FAILED tests/test_cve_download_update.py::test_download_no_update_file_exists_invalid
+FAILED tests/test_cve_download_update.py::test_download_update_file_exists_valid
+FAILED tests/test_cve_download_update.py::test_download_no_update_file_does_not_exist
+FAILED tests/test_cve_download_update.py::test_download_update_file_does_not_exist
+FAILED tests/test_cve_download_update.py::test_is_error_file_total_mismatch
+FAILED tests/test_cve_download_update.py::test_is_error_file_empty_results - ...
+======================== 10 failed, 40 passed in 0.64s =========================

@@ -153,31 +153,15 @@ def test_collection_search_appends_to_existing(data_dir):
 
 def test_collection_list(data_dir):
     """Tests the list command output."""
-    # Create a valid collection file that will pass validation
-    create_mock_collection_file(data_dir, "coll-1", {
-        "name": "coll-1",
-        "vulnerabilities": [
-            {"cve_id": "CVE-001", "vuln_id": "V-001"},
-            {"cve_id": "CVE-002", "vuln_id": "V-002"},
-            {"cve_id": "CVE-003", "vuln_id": "V-003"}
-        ],
-        "keywords": ["kw1"],
-        "last_updated": "date1"
-    })
-    # Create another valid collection file
-    create_mock_collection_file(data_dir, "coll-2", {
-        "name": "coll-2",
-        "vulnerabilities": [{"cve_id": "CVE-004", "vuln_id": "V-004"}],
-        "keywords": ["kw2"],
-        "last_updated": "date2"
-    })
+    create_mock_collection_file(data_dir, "coll-1", {"name": "coll-1", "vulnerabilities": [1,2,3], "keywords": ["kw1"], "last_updated": "date1"})
+    create_mock_collection_file(data_dir, "coll-2", {"name": "coll-2", "vulnerabilities": [1], "keywords": ["kw2"], "last_updated": "date2"})
     
     result = runner.invoke(collection_app.app, ["list"])
 
     assert result.exit_code == 0
     assert "coll-1" in result.stdout
     assert "coll-2" in result.stdout
-    assert "3" in result.stdout # item count for coll-1
+    assert "3" in result.stdout # item count
     assert "kw1" in result.stdout
 
 def test_collection_show(data_dir):
