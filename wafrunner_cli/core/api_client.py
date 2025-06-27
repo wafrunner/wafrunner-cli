@@ -89,11 +89,8 @@ class ApiClient:
 
     def get(self, endpoint: str, params: dict | None = None) -> Any:
         """Performs a GET request to a given API endpoint."""
-        response = self._request("GET", endpoint, params=params)
-        # Handle 404 Not Found gracefully
-        if response.status_code == 404:
-            return None
-        return response.json()
+        # Return the full response object to allow the caller to inspect status_code, etc.
+        return self._request("GET", endpoint, params=params)
 
     def post(self, endpoint: str, json: dict | None = None) -> Any:
         """Performs a POST request to a given API endpoint."""
