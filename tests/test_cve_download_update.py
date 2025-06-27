@@ -170,14 +170,14 @@ def test_is_error_file_missing_file(mocker):
     mock_open = mocker.patch("builtins.open", side_effect=FileNotFoundError)
     mock_print = mocker.patch("wafrunner_cli.commands.cve.print")
     assert is_error_file(Path("non_existent.json")) is True
-    mock_print.assert_called_with(mocker.ANY, "Error reading or decoding non_existent.json: [Errno 2] No such file or directory. Flagging for re-download.")
+    mock_print.assert_called_with(mocker.ANY, 'Error reading or decoding non_existent.json: [Errno 2] No such file or directory. Flagging for re-download.')
 
 def test_is_error_file_invalid_json(mocker):
     """Test is_error_file with a file containing invalid JSON."""
     mock_open = mocker.patch("builtins.open", mocker.mock_open(read_data="invalid json"))
     mock_print = mocker.patch("wafrunner_cli.commands.cve.print")
     assert is_error_file(Path("invalid.json")) is True
-    mock_print.assert_called_with(mocker.ANY, "Error reading or decoding invalid.json: Expecting value: line 1 column 1 (char 0). Flagging for re-download.")
+    mock_print.assert_called_with(mocker.ANY, 'Error reading or decoding invalid.json: Expecting value: line 1 column 1 (char 0). Flagging for re-download.')
 
 def test_is_error_file_incomplete_status(mocker):
     """Test is_error_file with a file having 'incomplete' download_status."""
@@ -191,7 +191,7 @@ def test_is_error_file_total_mismatch(mocker):
     mock_open = mocker.patch("builtins.open", mocker.mock_open(read_data=json.dumps({"download_status": "complete", "totalResults": 10, "vulnerabilities": [{"cve": {"id": "CVE-2023-1234"}}]})))
     mock_print = mocker.patch("wafrunner_cli.commands.cve.print")
     assert is_error_file(Path("mismatch.json")) is True
-    mock_print.assert_called_with(mocker.ANY, "File mismatch.json has totalResults=10 but contains 1 vulnerabilities. Flagging for re-download.")
+    mock_print.assert_called_with(mocker.ANY, 'File mismatch.json has totalResults=10 but contains 1 vulnerabilities. Flagging for re-download.')
 
 def test_is_error_file_empty_results(mocker):
     """Test is_error_file with totalResults 0 and empty vulnerabilities."""

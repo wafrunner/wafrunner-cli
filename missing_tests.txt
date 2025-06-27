@@ -1,0 +1,483 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-8.4.1, pluggy-1.6.0
+rootdir: /home/sam/Engineering/wafrunner/wafrunner-cli
+configfile: pyproject.toml
+plugins: anyio-4.9.0, mock-3.14.1, cov-6.2.1
+collected 42 items
+
+tests/test_api_client.py .........                                       [ 21%]
+tests/test_config_manager.py ..                                          [ 26%]
+tests/test_cve_download_range.py ...FFFFF.                               [ 47%]
+tests/test_cve_download_update.py .....FFFF..                            [ 73%]
+tests/test_cve_upload_tracking.py .......                                [ 90%]
+tests/test_research_commands.py ....                                     [100%]
+
+=================================== FAILURES ===================================
+__________ test_download_cves_for_range_fetch_page_none_then_success ___________
+
+self = <MagicMock name='print' id='133093749920288'>
+args = ('[yellow]Retrying chunk test_cve_chunk.json in 5s... (Attempt 1/3)[/yellow]',)
+kwargs = {}
+expected = call('[yellow]Retrying chunk test_cve_chunk.json in 5s... (Attempt 1/3)[/yellow]')
+cause = None
+actual = [call('Downloading CVEs from 2023-01-01T00:00:00.000Z to 2023-04-30T23:59:59.999Z...'), call('[bold red]Error download...10s... (Attempt 1/3)[/yellow]'), call("[green]Data saved to /tmp/test_cve_chunk.json with status 'complete'.[/green]")]
+expected_string = "print('[yellow]Retrying chunk test_cve_chunk.json in 5s... (Attempt 1/3)[/yellow]')"
+
+    def assert_any_call(self, /, *args, **kwargs):
+        """assert the mock has been called with the specified arguments.
+    
+        The assert passes if the mock has *ever* been called, unlike
+        `assert_called_with` and `assert_called_once_with` that only pass if
+        the call is the most recent one."""
+        expected = self._call_matcher(_Call((args, kwargs), two=True))
+        cause = expected if isinstance(expected, Exception) else None
+        actual = [self._call_matcher(c) for c in self.call_args_list]
+        if cause or expected not in _AnyComparer(actual):
+            expected_string = self._format_mock_call_signature(args, kwargs)
+>           raise AssertionError(
+                '%s call not found' % expected_string
+            ) from cause
+E           AssertionError: print('[yellow]Retrying chunk test_cve_chunk.json in 5s... (Attempt 1/3)[/yellow]') call not found
+
+/usr/lib/python3.12/unittest/mock.py:1015: AssertionError
+
+During handling of the above exception, another exception occurred:
+
+mocker = <pytest_mock.plugin.MockerFixture object at 0x790c4de82150>
+mock_httpx_client_instance = <MagicMock spec='Client' id='133093752603184'>
+mock_overall_progress = <MagicMock id='133093752661456'>
+mock_overall_task_id = <MagicMock id='133093749852688'>
+mock_fetch_nist_page = <MagicMock name='fetch_nist_page' id='133093749863920'>
+mock_json_dump = <MagicMock name='dump' id='133093749888240'>
+mock_time_sleep = <MagicMock name='sleep' id='133093749896016'>
+mock_rich_print = <MagicMock name='print' id='133093749920288'>
+
+    def test_download_cves_for_range_fetch_page_none_then_success(
+        mocker,
+        mock_httpx_client_instance, mock_overall_progress, mock_overall_task_id,
+        mock_fetch_nist_page, mock_json_dump, mock_time_sleep, mock_rich_print
+    ):
+        """Test retry logic: fetch_nist_page returns None once, then succeeds."""
+        # First call to fetch_nist_page returns None, second call succeeds
+        mock_fetch_nist_page.side_effect = [
+            None, # First attempt for the chunk fails
+            create_mock_nist_response(10, 10, 0) # Second attempt for the chunk succeeds
+        ]
+    
+        download_cves_for_range(
+            mock_httpx_client_instance, TEST_START_DATE, TEST_END_DATE,
+            TEST_OUTPUT_FILE, mock_overall_progress, mock_overall_task_id
+        )
+    
+        mock_rich_print.assert_any_call(f"Downloading CVEs from {TEST_START_DATE} to {TEST_END_DATE}...")
+        # fetch_nist_page should be called twice (once for initial failure, once for retry)
+        assert mock_fetch_nist_page.call_count == 2
+        mock_rich_print.assert_any_call(f"[bold red]Error downloading chunk {TEST_OUTPUT_FILE.name}: Failed to fetch page, retrying chunk.[/bold red]")
+>       mock_rich_print.assert_any_call(f"[yellow]Retrying chunk {TEST_OUTPUT_FILE.name} in {API_RETRY_DELAY * (1)}s... (Attempt 1/{MAX_RETRIES})[/yellow]")
+E       AssertionError: print('[yellow]Retrying chunk test_cve_chunk.json in 5s... (Attempt 1/3)[/yellow]') call not found
+E       
+E       pytest introspection follows:
+E       
+E       Args:
+E       assert ("[green]Data...e'.[/green]",) == ('[yellow]Ret...3)[/yellow]',)
+E         
+E         At index 0 diff: "[green]Data saved to /tmp/test_cve_chunk.json with status 'complete'.[/green]" != '[yellow]Retrying chunk test_cve_chunk.json in 5s... (Attempt 1/3)[/yellow]'
+E         Use -v to get more diff
+
+tests/test_cve_download_range.py:193: AssertionError
+________ test_download_cves_for_range_fetch_page_none_exhausts_retries _________
+
+mocker = <pytest_mock.plugin.MockerFixture object at 0x790c4daf32c0>
+mock_httpx_client_instance = <MagicMock spec='Client' id='133093749924080'>
+mock_overall_progress = <MagicMock id='133093752667600'>
+mock_overall_task_id = <MagicMock id='133093750199536'>
+mock_fetch_nist_page = <MagicMock name='fetch_nist_page' id='133093750352272'>
+mock_json_dump = <MagicMock name='dump' id='133093749855280'>
+mock_time_sleep = <MagicMock name='sleep' id='133093752576560'>
+mock_rich_print = <MagicMock name='print' id='133093752570608'>
+
+    def test_download_cves_for_range_fetch_page_none_exhausts_retries(
+        mocker,
+        mock_httpx_client_instance, mock_overall_progress, mock_overall_task_id,
+        mock_fetch_nist_page, mock_json_dump, mock_time_sleep, mock_rich_print
+    ):
+        """Test retry logic: fetch_nist_page always returns None, exhausting retries."""
+        mock_fetch_nist_page.side_effect = [None] * (MAX_RETRIES + 1) # Fail all attempts
+    
+        download_cves_for_range(
+            mock_httpx_client_instance, TEST_START_DATE, TEST_END_DATE,
+            TEST_OUTPUT_FILE, mock_overall_progress, mock_overall_task_id
+        )
+    
+        mock_rich_print.assert_any_call(f"Downloading CVEs from {TEST_START_DATE} to {TEST_END_DATE}...")
+        assert mock_fetch_nist_page.call_count == MAX_RETRIES # Only MAX_RETRIES attempts for the chunk
+        # Check that the error was printed on each retry attempt
+        for i in range(MAX_RETRIES):
+            mock_rich_print.assert_any_call(f"[bold red]Error downloading chunk {TEST_OUTPUT_FILE.name}: Failed to fetch page, retrying chunk.[/bold red]")
+        mock_rich_print.assert_any_call(f"[bold red]Failed to download chunk {TEST_OUTPUT_FILE.name} after {MAX_RETRIES} retries.[/bold red]")
+>       assert mock_time_sleep.call_count == MAX_RETRIES # Sleep after each failed retry
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: assert 2 == 3
+E        +  where 2 = <MagicMock name='sleep' id='133093752576560'>.call_count
+
+tests/test_cve_download_range.py:223: AssertionError
+_ test_download_cves_for_range_fetch_page_raises_http_status_error_exhausts_retries _
+
+mocker = <pytest_mock.plugin.MockerFixture object at 0x790c4daf0560>
+mock_httpx_client_instance = <MagicMock spec='Client' id='133093752666448'>
+mock_overall_progress = <MagicMock id='133093752654400'>
+mock_overall_task_id = <MagicMock id='133093753625232'>
+mock_fetch_nist_page = <MagicMock name='fetch_nist_page' id='133093752625616'>
+mock_json_dump = <MagicMock name='dump' id='133093752510736'>
+mock_time_sleep = <MagicMock name='sleep' id='133093750347568'>
+mock_rich_print = <MagicMock name='print' id='133093750356688'>
+
+    def test_download_cves_for_range_fetch_page_raises_http_status_error_exhausts_retries(
+        mocker,
+        mock_httpx_client_instance, mock_overall_progress, mock_overall_task_id,
+        mock_fetch_nist_page, mock_json_dump, mock_time_sleep, mock_rich_print
+    ):
+        """Test retry logic: fetch_nist_page raises HTTPStatusError, exhausting retries."""
+        mock_response = mocker.MagicMock(spec=httpx.Response)
+        mock_response.status_code = 500
+        mock_response.text = "Internal Server Error"
+        mock_request = mocker.MagicMock(spec=httpx.Request)
+        mock_request.url = "http://example.com/api"
+        mock_fetch_nist_page.side_effect = [
+            httpx.HTTPStatusError("Server error", request=mock_request, response=mock_response)
+        ] * (MAX_RETRIES + 1)
+    
+        download_cves_for_range(
+            mock_httpx_client_instance, TEST_START_DATE, TEST_END_DATE,
+            TEST_OUTPUT_FILE, mock_overall_progress, mock_overall_task_id
+        )
+    
+        mock_rich_print.assert_any_call(f"Downloading CVEs from {TEST_START_DATE} to {TEST_END_DATE}...")
+        assert mock_fetch_nist_page.call_count == MAX_RETRIES
+        mock_rich_print.assert_any_call(f"[bold red]Error downloading chunk {TEST_OUTPUT_FILE.name}: Server error[/bold red]")
+        mock_rich_print.assert_any_call(f"[bold red]Failed to download chunk {TEST_OUTPUT_FILE.name} after {MAX_RETRIES} retries.[/bold red]")
+>       assert mock_time_sleep.call_count == MAX_RETRIES
+E       AssertionError: assert 2 == 3
+E        +  where 2 = <MagicMock name='sleep' id='133093750347568'>.call_count
+
+tests/test_cve_download_range.py:253: AssertionError
+_ test_download_cves_for_range_fetch_page_raises_request_error_exhausts_retries _
+
+mocker = <pytest_mock.plugin.MockerFixture object at 0x790c4dd831a0>
+mock_httpx_client_instance = <MagicMock spec='Client' id='133093752625136'>
+mock_overall_progress = <MagicMock id='133093754532304'>
+mock_overall_task_id = <MagicMock id='133093750529904'>
+mock_fetch_nist_page = <MagicMock name='fetch_nist_page' id='133093750458656'>
+mock_json_dump = <MagicMock name='dump' id='133093750466672'>
+mock_time_sleep = <MagicMock name='sleep' id='133093750540480'>
+mock_rich_print = <MagicMock name='print' id='133093750548304'>
+
+    def test_download_cves_for_range_fetch_page_raises_request_error_exhausts_retries(
+        mocker,
+        mock_httpx_client_instance, mock_overall_progress, mock_overall_task_id,
+        mock_fetch_nist_page, mock_json_dump, mock_time_sleep, mock_rich_print
+    ):
+        """Test retry logic: fetch_nist_page raises RequestError, exhausting retries."""
+        mock_request = mocker.MagicMock(spec=httpx.Request)
+        mock_request.url = "http://example.com/api"
+        mock_fetch_nist_page.side_effect = [
+            httpx.RequestError("Network unreachable", request=mock_request)
+        ] * (MAX_RETRIES + 1)
+    
+        download_cves_for_range(
+            mock_httpx_client_instance, TEST_START_DATE, TEST_END_DATE,
+            TEST_OUTPUT_FILE, mock_overall_progress, mock_overall_task_id
+        )
+    
+        mock_rich_print.assert_any_call(f"Downloading CVEs from {TEST_START_DATE} to {TEST_END_DATE}...")
+        assert mock_fetch_nist_page.call_count == MAX_RETRIES
+        mock_rich_print.assert_any_call(f"[bold red]Error downloading chunk {TEST_OUTPUT_FILE.name}: Network unreachable[/bold red]")
+        mock_rich_print.assert_any_call(f"[bold red]Failed to download chunk {TEST_OUTPUT_FILE.name} after {MAX_RETRIES} retries.[/bold red]")
+>       assert mock_time_sleep.call_count == MAX_RETRIES
+E       AssertionError: assert 2 == 3
+E        +  where 2 = <MagicMock name='sleep' id='133093750540480'>.call_count
+
+tests/test_cve_download_range.py:280: AssertionError
+_ test_download_cves_for_range_fetch_page_raises_json_decode_error_exhausts_retries _
+
+mocker = <pytest_mock.plugin.MockerFixture object at 0x790c4db8ecc0>
+mock_httpx_client_instance = <MagicMock spec='Client' id='133093753625520'>
+mock_overall_progress = <MagicMock id='133093753621536'>
+mock_overall_task_id = <MagicMock id='133093749522896'>
+mock_fetch_nist_page = <MagicMock name='fetch_nist_page' id='133093749535856'>
+mock_json_dump = <MagicMock name='dump' id='133093749510784'>
+mock_time_sleep = <MagicMock name='sleep' id='133093749518704'>
+mock_rich_print = <MagicMock name='print' id='133093749493824'>
+
+    def test_download_cves_for_range_fetch_page_raises_json_decode_error_exhausts_retries(
+        mocker,
+        mock_httpx_client_instance, mock_overall_progress, mock_overall_task_id,
+        mock_fetch_nist_page, mock_json_dump, mock_time_sleep, mock_rich_print
+    ):
+        """Test retry logic: fetch_nist_page raises JSONDecodeError, exhausting retries."""
+        mock_fetch_nist_page.side_effect = [
+            json.JSONDecodeError("Invalid JSON", doc="{}", pos=0)
+        ] * (MAX_RETRIES + 1)
+    
+        download_cves_for_range(
+            mock_httpx_client_instance, TEST_START_DATE, TEST_END_DATE,
+            TEST_OUTPUT_FILE, mock_overall_progress, mock_overall_task_id
+        )
+    
+        mock_rich_print.assert_any_call(f"Downloading CVEs from {TEST_START_DATE} to {TEST_END_DATE}...")
+        assert mock_fetch_nist_page.call_count == MAX_RETRIES
+        # The str(e) for JSONDecodeError is "Invalid JSON: line 1 column 1 (char 0)"
+        mock_rich_print.assert_any_call(f"[bold red]Error downloading chunk {TEST_OUTPUT_FILE.name}: Invalid JSON: line 1 column 1 (char 0)[/bold red]")
+        mock_rich_print.assert_any_call(f"[bold red]Failed to download chunk {TEST_OUTPUT_FILE.name} after {MAX_RETRIES} retries.[/bold red]")
+>       assert mock_time_sleep.call_count == MAX_RETRIES
+E       AssertionError: assert 2 == 3
+E        +  where 2 = <MagicMock name='sleep' id='133093749518704'>.call_count
+
+tests/test_cve_download_range.py:306: AssertionError
+_______________________ test_is_error_file_missing_file ________________________
+
+self = <MagicMock name='print' id='133093753623024'>
+args = (<ANY>, 'Error reading or decoding non_existent.json: [Errno 2] No such file or directory. Flagging for re-download.')
+kwargs = {}
+expected = call(<ANY>, 'Error reading or decoding non_existent.json: [Errno 2] No such file or directory. Flagging for re-download.')
+actual = call('[yellow]Error reading or decoding non_existent.json: . Flagging for re-download.[/yellow]')
+_error_message = <function NonCallableMock.assert_called_with.<locals>._error_message at 0x790c4db25300>
+cause = None
+
+    def assert_called_with(self, /, *args, **kwargs):
+        """assert that the last call was made with the specified arguments.
+    
+        Raises an AssertionError if the args and keyword args passed in are
+        different to the last call to the mock."""
+        if self.call_args is None:
+            expected = self._format_mock_call_signature(args, kwargs)
+            actual = 'not called.'
+            error_message = ('expected call not found.\nExpected: %s\n  Actual: %s'
+                    % (expected, actual))
+            raise AssertionError(error_message)
+    
+        def _error_message():
+            msg = self._format_mock_failure_message(args, kwargs)
+            return msg
+        expected = self._call_matcher(_Call((args, kwargs), two=True))
+        actual = self._call_matcher(self.call_args)
+        if actual != expected:
+            cause = expected if isinstance(expected, Exception) else None
+>           raise AssertionError(_error_message()) from cause
+E           AssertionError: expected call not found.
+E           Expected: print(<ANY>, 'Error reading or decoding non_existent.json: [Errno 2] No such file or directory. Flagging for re-download.')
+E             Actual: print('[yellow]Error reading or decoding non_existent.json: . Flagging for re-download.[/yellow]')
+
+/usr/lib/python3.12/unittest/mock.py:944: AssertionError
+
+During handling of the above exception, another exception occurred:
+
+mocker = <pytest_mock.plugin.MockerFixture object at 0x790c4d6d6e40>
+
+    def test_is_error_file_missing_file(mocker):
+        """Test is_error_file with a non-existent file."""
+        mock_open = mocker.patch("builtins.open", side_effect=FileNotFoundError)
+        mock_print = mocker.patch("wafrunner_cli.commands.cve.print")
+        assert is_error_file(Path("non_existent.json")) is True
+>       mock_print.assert_called_with(mocker.ANY, 'Error reading or decoding non_existent.json: [Errno 2] No such file or directory. Flagging for re-download.')
+E       AssertionError: expected call not found.
+E       Expected: print(<ANY>, 'Error reading or decoding non_existent.json: [Errno 2] No such file or directory. Flagging for re-download.')
+E         Actual: print('[yellow]Error reading or decoding non_existent.json: . Flagging for re-download.[/yellow]')
+E       
+E       pytest introspection follows:
+E       
+E       Args:
+E       assert ('[yellow]Err...d.[/yellow]',) == (<ANY>, 'Erro...re-download.')
+E         
+E         Right contains one more item: 'Error reading or decoding non_existent.json: [Errno 2] No such file or directory. Flagging for re-download.'
+E         Use -v to get more diff
+
+tests/test_cve_download_update.py:173: AssertionError
+_______________________ test_is_error_file_invalid_json ________________________
+
+self = <MagicMock name='print' id='133093750353184'>
+args = (<ANY>, 'Error reading or decoding invalid.json: Expecting value: line 1 column 1 (char 0). Flagging for re-download.')
+kwargs = {}
+expected = call(<ANY>, 'Error reading or decoding invalid.json: Expecting value: line 1 column 1 (char 0). Flagging for re-download.')
+actual = call('[yellow]Error reading or decoding invalid.json: Expecting value: line 1 column 1 (char 0). Flagging for re-download.[/yellow]')
+_error_message = <function NonCallableMock.assert_called_with.<locals>._error_message at 0x790c4db27e20>
+cause = None
+
+    def assert_called_with(self, /, *args, **kwargs):
+        """assert that the last call was made with the specified arguments.
+    
+        Raises an AssertionError if the args and keyword args passed in are
+        different to the last call to the mock."""
+        if self.call_args is None:
+            expected = self._format_mock_call_signature(args, kwargs)
+            actual = 'not called.'
+            error_message = ('expected call not found.\nExpected: %s\n  Actual: %s'
+                    % (expected, actual))
+            raise AssertionError(error_message)
+    
+        def _error_message():
+            msg = self._format_mock_failure_message(args, kwargs)
+            return msg
+        expected = self._call_matcher(_Call((args, kwargs), two=True))
+        actual = self._call_matcher(self.call_args)
+        if actual != expected:
+            cause = expected if isinstance(expected, Exception) else None
+>           raise AssertionError(_error_message()) from cause
+E           AssertionError: expected call not found.
+E           Expected: print(<ANY>, 'Error reading or decoding invalid.json: Expecting value: line 1 column 1 (char 0). Flagging for re-download.')
+E             Actual: print('[yellow]Error reading or decoding invalid.json: Expecting value: line 1 column 1 (char 0). Flagging for re-download.[/yellow]')
+
+/usr/lib/python3.12/unittest/mock.py:944: AssertionError
+
+During handling of the above exception, another exception occurred:
+
+mocker = <pytest_mock.plugin.MockerFixture object at 0x790c4d6c83e0>
+
+    def test_is_error_file_invalid_json(mocker):
+        """Test is_error_file with a file containing invalid JSON."""
+        mock_open = mocker.patch("builtins.open", mocker.mock_open(read_data="invalid json"))
+        mock_print = mocker.patch("wafrunner_cli.commands.cve.print")
+        assert is_error_file(Path("invalid.json")) is True
+>       mock_print.assert_called_with(mocker.ANY, 'Error reading or decoding invalid.json: Expecting value: line 1 column 1 (char 0). Flagging for re-download.')
+E       AssertionError: expected call not found.
+E       Expected: print(<ANY>, 'Error reading or decoding invalid.json: Expecting value: line 1 column 1 (char 0). Flagging for re-download.')
+E         Actual: print('[yellow]Error reading or decoding invalid.json: Expecting value: line 1 column 1 (char 0). Flagging for re-download.[/yellow]')
+E       
+E       pytest introspection follows:
+E       
+E       Args:
+E       assert ('[yellow]Err...d.[/yellow]',) == (<ANY>, 'Erro...re-download.')
+E         
+E         Right contains one more item: 'Error reading or decoding invalid.json: Expecting value: line 1 column 1 (char 0). Flagging for re-download.'
+E         Use -v to get more diff
+
+tests/test_cve_download_update.py:180: AssertionError
+_____________________ test_is_error_file_incomplete_status _____________________
+
+self = <MagicMock name='print' id='133093749269968'>
+args = (<ANY>, "File incomplete.json has download status 'incomplete'. Flagging for re-download.")
+kwargs = {}
+expected = call(<ANY>, "File incomplete.json has download status 'incomplete'. Flagging for re-download.")
+actual = call("[yellow]File incomplete.json has download status 'incomplete'. Flagging for re-download.[/yellow]")
+_error_message = <function NonCallableMock.assert_called_with.<locals>._error_message at 0x790c4db274c0>
+cause = None
+
+    def assert_called_with(self, /, *args, **kwargs):
+        """assert that the last call was made with the specified arguments.
+    
+        Raises an AssertionError if the args and keyword args passed in are
+        different to the last call to the mock."""
+        if self.call_args is None:
+            expected = self._format_mock_call_signature(args, kwargs)
+            actual = 'not called.'
+            error_message = ('expected call not found.\nExpected: %s\n  Actual: %s'
+                    % (expected, actual))
+            raise AssertionError(error_message)
+    
+        def _error_message():
+            msg = self._format_mock_failure_message(args, kwargs)
+            return msg
+        expected = self._call_matcher(_Call((args, kwargs), two=True))
+        actual = self._call_matcher(self.call_args)
+        if actual != expected:
+            cause = expected if isinstance(expected, Exception) else None
+>           raise AssertionError(_error_message()) from cause
+E           AssertionError: expected call not found.
+E           Expected: print(<ANY>, "File incomplete.json has download status 'incomplete'. Flagging for re-download.")
+E             Actual: print("[yellow]File incomplete.json has download status 'incomplete'. Flagging for re-download.[/yellow]")
+
+/usr/lib/python3.12/unittest/mock.py:944: AssertionError
+
+During handling of the above exception, another exception occurred:
+
+mocker = <pytest_mock.plugin.MockerFixture object at 0x790c4da67da0>
+
+    def test_is_error_file_incomplete_status(mocker):
+        """Test is_error_file with a file having 'incomplete' download_status."""
+        mock_open = mocker.patch("builtins.open", mocker.mock_open(read_data=json.dumps({"download_status": "incomplete", "totalResults": 10, "vulnerabilities": []})))
+        mock_print = mocker.patch("wafrunner_cli.commands.cve.print")
+        assert is_error_file(Path("incomplete.json")) is True
+>       mock_print.assert_called_with(mocker.ANY, "File incomplete.json has download status 'incomplete'. Flagging for re-download.")
+E       AssertionError: expected call not found.
+E       Expected: print(<ANY>, "File incomplete.json has download status 'incomplete'. Flagging for re-download.")
+E         Actual: print("[yellow]File incomplete.json has download status 'incomplete'. Flagging for re-download.[/yellow]")
+E       
+E       pytest introspection follows:
+E       
+E       Args:
+E       assert ('[yellow]Fil...d.[/yellow]',) == (<ANY>, 'File...re-download.')
+E         
+E         Right contains one more item: "File incomplete.json has download status 'incomplete'. Flagging for re-download."
+E         Use -v to get more diff
+
+tests/test_cve_download_update.py:187: AssertionError
+______________________ test_is_error_file_total_mismatch _______________________
+
+self = <MagicMock name='print' id='133093749160032'>
+args = (<ANY>, 'File mismatch.json has totalResults=10 but contains 1 vulnerabilities. Flagging for re-download.')
+kwargs = {}
+expected = call(<ANY>, 'File mismatch.json has totalResults=10 but contains 1 vulnerabilities. Flagging for re-download.')
+actual = call('[yellow]File mismatch.json has totalResults=10 but contains 1 vulnerabilities. Flagging for re-download.[/yellow]')
+_error_message = <function NonCallableMock.assert_called_with.<locals>._error_message at 0x790c4d6c40e0>
+cause = None
+
+    def assert_called_with(self, /, *args, **kwargs):
+        """assert that the last call was made with the specified arguments.
+    
+        Raises an AssertionError if the args and keyword args passed in are
+        different to the last call to the mock."""
+        if self.call_args is None:
+            expected = self._format_mock_call_signature(args, kwargs)
+            actual = 'not called.'
+            error_message = ('expected call not found.\nExpected: %s\n  Actual: %s'
+                    % (expected, actual))
+            raise AssertionError(error_message)
+    
+        def _error_message():
+            msg = self._format_mock_failure_message(args, kwargs)
+            return msg
+        expected = self._call_matcher(_Call((args, kwargs), two=True))
+        actual = self._call_matcher(self.call_args)
+        if actual != expected:
+            cause = expected if isinstance(expected, Exception) else None
+>           raise AssertionError(_error_message()) from cause
+E           AssertionError: expected call not found.
+E           Expected: print(<ANY>, 'File mismatch.json has totalResults=10 but contains 1 vulnerabilities. Flagging for re-download.')
+E             Actual: print('[yellow]File mismatch.json has totalResults=10 but contains 1 vulnerabilities. Flagging for re-download.[/yellow]')
+
+/usr/lib/python3.12/unittest/mock.py:944: AssertionError
+
+During handling of the above exception, another exception occurred:
+
+mocker = <pytest_mock.plugin.MockerFixture object at 0x790c4da80dd0>
+
+    def test_is_error_file_total_mismatch(mocker):
+        """Test is_error_file with totalResults not matching actual vulnerabilities count."""
+        mock_open = mocker.patch("builtins.open", mocker.mock_open(read_data=json.dumps({"download_status": "complete", "totalResults": 10, "vulnerabilities": [{"cve": {"id": "CVE-2023-1234"}}]})))
+        mock_print = mocker.patch("wafrunner_cli.commands.cve.print")
+        assert is_error_file(Path("mismatch.json")) is True
+>       mock_print.assert_called_with(mocker.ANY, 'File mismatch.json has totalResults=10 but contains 1 vulnerabilities. Flagging for re-download.')
+E       AssertionError: expected call not found.
+E       Expected: print(<ANY>, 'File mismatch.json has totalResults=10 but contains 1 vulnerabilities. Flagging for re-download.')
+E         Actual: print('[yellow]File mismatch.json has totalResults=10 but contains 1 vulnerabilities. Flagging for re-download.[/yellow]')
+E       
+E       pytest introspection follows:
+E       
+E       Args:
+E       assert ('[yellow]Fil...d.[/yellow]',) == (<ANY>, 'File...re-download.')
+E         
+E         Right contains one more item: 'File mismatch.json has totalResults=10 but contains 1 vulnerabilities. Flagging for re-download.'
+E         Use -v to get more diff
+
+tests/test_cve_download_update.py:194: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_cve_download_range.py::test_download_cves_for_range_fetch_page_none_then_success
+FAILED tests/test_cve_download_range.py::test_download_cves_for_range_fetch_page_none_exhausts_retries
+FAILED tests/test_cve_download_range.py::test_download_cves_for_range_fetch_page_raises_http_status_error_exhausts_retries
+FAILED tests/test_cve_download_range.py::test_download_cves_for_range_fetch_page_raises_request_error_exhausts_retries
+FAILED tests/test_cve_download_range.py::test_download_cves_for_range_fetch_page_raises_json_decode_error_exhausts_retries
+FAILED tests/test_cve_download_update.py::test_is_error_file_missing_file - A...
+FAILED tests/test_cve_download_update.py::test_is_error_file_invalid_json - A...
+FAILED tests/test_cve_download_update.py::test_is_error_file_incomplete_status
+FAILED tests/test_cve_download_update.py::test_is_error_file_total_mismatch
+========================= 9 failed, 33 passed in 0.66s =========================
