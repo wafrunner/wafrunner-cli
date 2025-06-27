@@ -374,7 +374,7 @@ def process_record(api_client: ApiClient, vuln_source_data: Dict[str, Any], forc
             return ("created", cve_id, last_modified, new_vuln_id)
         elif response.status_code == 409:
             print(f"[yellow]Warning: Create for {cve_id} failed with 409 Conflict.[/yellow]")
-            return ("skipped_conflict", cve_id, None, None)
+            return ("skipped_conflict", cve_id, last_modified, None)
         else:
             return ("error_create_failed", cve_id, None, None)
     except Exception as e:
@@ -385,27 +385,47 @@ def process_record(api_client: ApiClient, vuln_source_data: Dict[str, Any], forc
 
 @app.command()
 def download(
-    year: int = typer.Option(..., "--year", "-y", help="The year of the CVEs to download."),
+    year: Optional[int] = typer.Option(
+        None, "--year", "-y", help="The year of the CVEs to download. Required unless --all-time is used."
+    ),
+    all_time: bool = typer.Option(
+        False, "--all-time", "-a", help="Download CVEs from 1999 to the current year. Cannot be used with --year."
+    ),
     output_dir: Optional[Path] = typer.Option(None, "--output-dir", "-o", help="Directory to save CVE files."),
     update: bool = typer.Option(False, "--update", "-u", help="Re-download data even if files exist."),
 ):
     """Download CVE data for a specific year from the NIST NVD API."""
+    if all_time and year is not None: print("[bold red]Error:[/bold red] Cannot use --all-time with --year. Please choose one."); raise typer.Exit(code=1)
+    if not all_time and year is None: print("[bold red]Error:[/bold red] Either --year or --all-time must be provided."); raise typer.Exit(code=1)
+
+    start_year = 1999 if all_time else year
+    end_year = datetime.now().year if all_time else year
+
     if output_dir is None: output_dir = get_default_cve_path()
     output_dir.mkdir(parents=True, exist_ok=True)
-    print(f"Initializing CVE download for [bold cyan]{year}[/bold cyan]...")
-    chunks = generate_date_chunks_for_year(year)
+
+    print(f"Initializing CVE download from [bold cyan]{start_year}[/bold cyan] to [bold cyan]{end_year}[/bold cyan] from NIST...")
+    print(f"Data will be saved to [green]{output_dir}[/green]. Update mode: {update}")
+
+    all_chunks_with_years = []
+    for current_y in range(start_year, end_year + 1):
+        chunks_for_year = generate_date_chunks_for_year(current_y)
+        all_chunks_with_years.extend([(s, e, p, current_y) for s, e, p in chunks_for_year])
+
+    total_chunks = len(all_chunks_with_years)
+
     with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), BarColumn(), TextColumn("[progress.percentage]{task.percentage:>3.0f}%"), TextColumn("({task.completed} of {task.total})"), TimeRemainingColumn(), transient=False) as progress:
-        task = progress.add_task(f"Processing chunks for {year}...", total=len(chunks))
+        task = progress.add_task(f"Processing {total_chunks} date chunks...", total=total_chunks)
         with httpx.Client(base_url=NIST_API_BASE_URL, timeout=60.0) as client:
-            for i, (start_str, end_str, part) in enumerate(chunks):
-                path = output_dir / f"nvd-cves-{year}-{part}.json"
+            for i, (start_str, end_str, part, chunk_year) in enumerate(all_chunks_with_years):
+                path = output_dir / f"nvd-cves-{chunk_year}-{part}.json"
                 if path.exists() and not update and not is_error_file(path):
                     print(f"[green]File {path.name} is valid. Skipping.[/green]")
                     progress.update(task, advance=1)
                     continue
                 download_cves_for_range(client, start_str, end_str, path, progress, task)
                 progress.update(task, advance=1)
-                if i < len(chunks) - 1: time.sleep(REQUEST_DELAY_SECONDS)
+                if i < total_chunks - 1: time.sleep(REQUEST_DELAY_SECONDS)
     print("\n[bold green]✔ Download process finished.[/bold green]")
 
 
@@ -438,15 +458,17 @@ def upload(
         unique_cves = {}
         print("Reading, parsing, and de-duplicating JSON files...")
         for file_path in json_files:
-            try:
-                with open(file_path, "r", encoding='utf-8') as f: data = json.load(f)
-                for record in data.get('vulnerabilities', []):
-                    cve_id = record.get("cve", {}).get("id")
-                    last_mod = record.get("cve", {}).get("lastModified")
-                    if cve_id and last_mod and (cve_id not in unique_cves or last_mod > unique_cves[cve_id].get("cve",{}).get("lastModified")):
-                        unique_cves[cve_id] = record
-            except (json.JSONDecodeError, IOError) as e:
-                print(f"[yellow]Warning: Could not process {file_path}: {e}[/yellow]")
+            with open(file_path, "r", encoding='utf-8') as f: data = json.load(f)
+            for record in data.get('vulnerabilities', []):
+                cve_id = record.get("cve", {}).get("id")
+                # If there's no CVE ID, we can't de-duplicate, so just add it.
+                # We use a unique key to avoid overwriting other records without an ID.
+                if not cve_id:
+                    unique_cves[f"no-id-{len(unique_cves)}"] = record
+                    continue
+                last_mod = record.get("cve", {}).get("lastModified")
+                if last_mod and (cve_id not in unique_cves or last_mod > unique_cves[cve_id].get("cve",{}).get("lastModified")):
+                    unique_cves[cve_id] = record
         
         records_to_process = list(unique_cves.values())
         total_records = len(records_to_process)
@@ -464,9 +486,10 @@ def upload(
                     for record in records_to_process
                 }
                 for future in concurrent.futures.as_completed(futures):
-                    outcome, cve_id, last_modified, vuln_id = future.result()
-                    outcomes[outcome] += 1
-                    if cve_id and last_modified and vuln_id:
+                    # Unpack the result tuple from process_record
+                    outcome_str, cve_id, last_modified, vuln_id = future.result()
+                    outcomes[outcome_str] += 1
+                    if cve_id and last_modified:
                         uploaded_cves_tracking[cve_id] = {"lastModified": last_modified, "vulnID": vuln_id}
                     progress.update(task, advance=1)
         
@@ -497,4 +520,3 @@ def upload(
 def search(keyword: str):
     """Search for CVEs (Placeholder)."""
     print(f"Searching for: {keyword}")
-

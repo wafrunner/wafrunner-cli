@@ -1,7 +1,7 @@
 import typer
 from rich import print
 from rich.table import Table
-from typing import List, Optional
+from typing import Any, List, Optional
 from pathlib import Path
 import json
 import glob
@@ -44,6 +44,27 @@ def build_id_lookup_maps(tracking_data: dict) -> (dict, dict):
             vuln_to_cve[vuln_id] = cve_id
     return cve_to_vuln, vuln_to_cve
 
+def validate_collection_data(data: Any, file_path: Path) -> (bool, Optional[str]):
+    """
+    Validates the basic schema of a collection data object.
+    Returns (is_valid, error_message).
+    """
+    if not isinstance(data, dict):
+        return False, "Root object is not a dictionary."
+    
+    if "name" not in data or not isinstance(data["name"], str):
+        return False, "Missing or invalid 'name' field (must be a string)."
+
+    if "vulnerabilities" not in data or not isinstance(data["vulnerabilities"], list):
+        return False, "Missing or invalid 'vulnerabilities' field (must be a list)."
+
+    for i, vuln in enumerate(data["vulnerabilities"]):
+        if not isinstance(vuln, dict):
+            return False, f"Item at index {i} in 'vulnerabilities' is not a dictionary."
+        if "cve_id" not in vuln or "vuln_id" not in vuln:
+            return False, f"Item at index {i} in 'vulnerabilities' is missing 'cve_id' or 'vuln_id'."
+
+    return True, None
 
 # --- CLI Commands ---
 
@@ -63,21 +84,35 @@ def list_collections():
     table.add_column("Name", style="cyan", no_wrap=True)
     table.add_column("Items", justify="right", style="magenta")
     table.add_column("Keywords", style="green")
-    table.add_column("Last Updated", style="yellow")
+    table.add_column("File Path", style="blue")
+    table.add_column("Status", style="green")
 
-    for file_path in sorted(collection_files):
+    for file_path_str in sorted(collection_files):
+        file_path = Path(file_path_str)
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
             
-            table.add_row(
-                data.get("name", Path(file_path).stem),
-                str(len(data.get("vulnerabilities", []))),
-                ", ".join(data.get("keywords", ["N/A"])),
-                data.get("last_updated", "N/A"),
-            )
+            is_valid, error_msg = validate_collection_data(data, file_path)
+
+            if is_valid:
+                table.add_row(
+                    data.get("name", file_path.stem),
+                    str(len(data.get("vulnerabilities", []))),
+                    ", ".join(data.get("keywords", []) or ["-"]),
+                    str(file_path),
+                    "[green]OK[/green]",
+                )
+            else:
+                table.add_row(
+                    file_path.stem,
+                    "-",
+                    "-",
+                    str(file_path),
+                    f"[bold red]Invalid: {error_msg}[/bold red]",
+                )
         except (json.JSONDecodeError, IOError) as e:
-            print(f"[red]Error reading collection file {Path(file_path).name}: {e}[/red]")
+            table.add_row(file_path.stem, "-", "-", str(file_path), f"[bold red]Read Error[/bold red]")
 
     print(table)
 
@@ -92,6 +127,12 @@ def show(name: str = typer.Argument(..., help="The name of the collection to sho
 
     try:
         with open(collection_file, "r", encoding="utf-8") as f: data = json.load(f)
+
+        is_valid, error_msg = validate_collection_data(data, collection_file)
+        if not is_valid:
+            print(f"[bold red]Error:[/bold red] Collection '{name}' is invalid.")
+            print(f"Reason: {error_msg}")
+            raise typer.Exit(code=1)
 
         print(f"[bold cyan]Collection Details for '{data.get('name')}'[/bold cyan]")
         print(f"  [green]Keywords:[/green] {', '.join(data.get('keywords', ['N/A']))}")
@@ -175,10 +216,11 @@ def create_collection(
         
         vulnerabilities.append({"cve_id": found_cve, "vuln_id": found_vuln})
     
+    now_iso = datetime.now(timezone.utc).isoformat(timespec='seconds')
     collection_data = {
         "name": name,
-        "creation_date": datetime.now(timezone.utc).isoformat(),
-        "last_updated": datetime.now(timezone.utc).isoformat(),
+        "creation_date": now_iso,
+        "last_updated": now_iso,
         "keywords": [], # No keywords for manually created collections
         "vulnerabilities": vulnerabilities
     }
@@ -218,11 +260,16 @@ def search_collection(
         print(f"Appending to existing collection '{name}'...")
         try:
             with open(collection_file, 'r', encoding='utf-8') as f: existing_data = json.load(f)
-            collection_data['vulnerabilities'] = existing_data.get('vulnerabilities', [])
-            collection_data['keywords'].extend(existing_data.get('keywords', []))
-            collection_data['keywords'] = sorted(list(set(collection_data['keywords'])))
-        except (json.JSONDecodeError, IOError):
-            print(f"[red]Could not load existing collection file. A new one will be created.[/red]")
+            
+            is_valid, error_msg = validate_collection_data(existing_data, collection_file)
+            if not is_valid:
+                print(f"[red]Warning: Existing collection is invalid ({error_msg}). A new collection will be created instead of appending.[/red]")
+            else:
+                collection_data['vulnerabilities'] = existing_data.get('vulnerabilities', [])
+                collection_data['keywords'].extend(existing_data.get('keywords', []))
+                collection_data['keywords'] = sorted(list(set(collection_data['keywords'])))
+        except (json.JSONDecodeError, IOError) as e:
+            print(f"[red]Could not load existing collection file ({e}). A new one will be created.[/red]")
             
     existing_cves_in_collection = {v['cve_id'] for v in collection_data['vulnerabilities']}
     found_count = 0
@@ -248,9 +295,10 @@ def search_collection(
                     break 
 
     collection_data["name"] = name
-    collection_data["last_updated"] = datetime.now(timezone.utc).isoformat()
+    now_iso = datetime.now(timezone.utc).isoformat(timespec='seconds')
+    collection_data["last_updated"] = now_iso
     if 'creation_date' not in collection_data:
-        collection_data['creation_date'] = datetime.now(timezone.utc).isoformat()
+        collection_data['creation_date'] = now_iso
 
     try:
         with open(collection_file, "w", encoding="utf-8") as f:

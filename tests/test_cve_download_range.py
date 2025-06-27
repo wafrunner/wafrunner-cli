@@ -321,7 +321,7 @@ def test_download_cves_for_range_io_error_on_save(
 
     mock_rich_print.assert_any_call(f"Downloading CVEs from {TEST_START_DATE} to {TEST_END_DATE}...")
     mock_json_dump.assert_called_once()
-    mock_rich_print.assert_any_call(f"[bold red]File Error:[/bold red] Could not write to {TEST_OUTPUT_FILE}: Disk full[bold red]")
+    mock_rich_print.assert_any_call(f"[bold red]File Error:[/bold red] Could not write to {TEST_OUTPUT_FILE}: Disk full")
     # The download_status should still be 'complete' in the internal result before the save fails
     # but the file itself won't be written or will be corrupted.
     # The function doesn't re-raise, it just prints the error.
