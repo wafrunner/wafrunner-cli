@@ -45,7 +45,7 @@ def test_api_client_get_success(mocker):
     # Assert
     assert result.status_code == 200
     assert result.json() == {"data": "success"}
-    mock_httpx_request.assert_called_once_with("GET", "http://localhost:8000/api/v1/test-endpoint", params=None, timeout=30.0)
+    mock_httpx_request.assert_called_once_with("GET", "/test-endpoint", params=None)
 
 
 def test_api_client_get_not_found_returns_none(mocker):
@@ -69,7 +69,7 @@ def test_api_client_get_not_found_returns_none(mocker):
     # Assert
     assert result.status_code == 404
     # No need to assert json() as it might not be valid for 404
-    mock_httpx_request.assert_called_once_with("GET", "http://localhost:8000/api/v1/not-found-endpoint", params=None, timeout=30.0)
+    mock_httpx_request.assert_called_once_with("GET", "/not-found-endpoint", params=None)
 
 
 def test_api_client_post_success(mocker):
