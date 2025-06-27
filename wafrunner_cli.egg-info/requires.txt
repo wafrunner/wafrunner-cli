@@ -1,7 +1,0 @@
-typer[all]
-httpx
-prompt-toolkit
-
-[test]
-pytest
-pytest-mock
