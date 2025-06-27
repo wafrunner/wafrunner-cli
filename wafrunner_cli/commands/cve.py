@@ -2,7 +2,7 @@ import typer
 from rich import print
 from typing import Any, Dict, Optional, Union
 from pathlib import Path
-import json  # Added import for JSON handling
+import json
 from rich.table import Table
 from rich.progress import (
     Progress,
@@ -19,27 +19,24 @@ import glob
 import concurrent.futures
 from collections import Counter
 
+# Assumes local project structure contains these modules
 from wafrunner_cli.core.api_client import ApiClient
 from wafrunner_cli.core.exceptions import AuthenticationError
-from wafrunner_cli.core.transformers import transform_vulnerability
 
 app = typer.Typer(help="Commands for managing CVE data.")
 
 # NIST API configuration
-# NIST API configuration
-NIST_API_BASE_URL = "https://services.nvd.nist.gov/rest/json/cves/2.0" # Base URL for NIST NVD API
-RESULTS_PER_PAGE = 2000  # Max allowed by NIST API per request
-REQUEST_DELAY_SECONDS = 6  # Recommended delay in seconds between requests to NIST API
-MAX_RETRIES = 3  # Maximum number of retries for a failed NIST API request
-API_RETRY_DELAY = 5 # Initial delay for retries (exponential backoff)
-CHUNK_DAYS = 120 # Number of days per chunk for NIST API requests (max allowed by NIST is 120)
+NIST_API_BASE_URL = "https://services.nvd.nist.gov/rest/json/cves/2.0"
+RESULTS_PER_PAGE = 2000
+REQUEST_DELAY_SECONDS = 6
+MAX_RETRIES = 3
+API_RETRY_DELAY = 5
+CHUNK_DAYS = 120
 
 # Constants for upload process
-RETRY_GET_ON_CONFLICT = True  # Retry GET if 409 occurs during POST
-MAX_GET_RETRIES_ON_CONFLICT = 1  # Number of times to retry GET
-UPDATE_DELAY_SECONDS = 0.1
+UPDATE_DELAY_SECONDS = 0.1 # Delay after a successful create or update
 
-
+# --- Utility Functions ---
 
 def get_default_cve_path() -> Path:
     """Returns the default path for storing downloaded CVEs."""
@@ -55,32 +52,33 @@ def get_uploaded_cves_tracking_path() -> Path:
     return tracking_path
 
 
-def load_uploaded_cves_tracking() -> Dict[str, str]:
-    """Loads the CVE upload tracking data from the JSON file."""
+def load_uploaded_cves_tracking() -> Dict[str, Dict[str, str]]:
+    """
+    Loads the CVE upload tracking data from a JSON file.
+    The data structure is: {cveID: {"lastModified": "...", "vulnID": "..."}}
+    """
     tracking_path = get_uploaded_cves_tracking_path()
     if not tracking_path.exists():
         return {}
     try:
         with open(tracking_path, "r", encoding="utf-8") as f:
-            return json.load(f)  # Load the JSON data
+            return json.load(f)
     except (json.JSONDecodeError, IOError) as e:
         print(f"[yellow]Warning: Could not load CVE upload tracking file {tracking_path}: {e}. Starting fresh.[/yellow]")
         return {}
 
 
-def save_uploaded_cves_tracking(tracking_data: Dict[str, str]):
-    """Saves the CVE upload tracking data to the JSON file."""
+def save_uploaded_cves_tracking(tracking_data: Dict[str, Dict[str, str]]):
+    """Saves the CVE upload tracking data to a JSON file."""
     tracking_path = get_uploaded_cves_tracking_path()
     tracking_path.parent.mkdir(parents=True, exist_ok=True)
     with open(tracking_path, "w", encoding="utf-8") as f:
         json.dump(tracking_data, f, indent=2)
 
+# --- Download Command Helpers ---
+
 def isoformat_utc(dt: datetime, start: bool = True) -> str:
-    """
-    Returns an ISO-8601 formatted string in UTC.
-    If start is True, returns time as 00:00:00.000Z,
-    otherwise returns 23:59:59.999Z.
-    """
+    """Returns an ISO-8601 formatted string in UTC, formatted for NIST API."""
     if start:
         return dt.strftime("%Y-%m-%dT00:00:00.000Z")
     else:
@@ -88,32 +86,15 @@ def isoformat_utc(dt: datetime, start: bool = True) -> str:
 
 
 def fetch_nist_page(client: httpx.Client, params: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """
-    Fetch a page of CVE data from NIST NVD API.
-    Handles retries and specific error logging.
-    """
-    # Construct the full URL for logging purposes
-    # httpx.Client.build_request creates a Request object which has the full URL
+    """Fetches a single page of CVE data from the NIST NVD API."""
     request_obj = client.build_request("GET", "", params=params)
     url_for_logging = str(request_obj.url)
-
     try:
         response = client.get("", params=params)
-        response.raise_for_status()  # Raise for 4xx/5xx errors
+        response.raise_for_status()
         return response.json()
     except httpx.HTTPStatusError as e:
-        print(
-            f"[bold red]API Error:[/bold red] NIST API returned status {e.response.status_code} for URL: {url_for_logging}. Response: {e.response.text[:200]}"
-        )
-        if e.response.status_code == 403:
-            # Handle 403 error
-            print(f"[bold red]Error:[/bold red] Access denied for URL: {url_for_logging}.")
-        elif e.response.status_code == 404:
-            # Handle 404 error
-            print(f"[bold red]Error:[/bold red] Resource not found for URL: {url_for_logging}.")
-        elif e.response.status_code == 400:
-            # Handle 400 error
-            print(f"[bold red]Error:[/bold red] Bad request for URL: {url_for_logging}.")
+        print(f"[bold red]API Error:[/bold red] NIST API returned status {e.response.status_code} for URL: {url_for_logging}. Response: {e.response.text[:200]}")
     except httpx.RequestError as e:
         print(f"[bold red]Network Error:[/bold red] Failed to connect to NIST API at {url_for_logging!r}: {e}")
     except json.JSONDecodeError:
@@ -129,19 +110,13 @@ def download_cves_for_range(
     overall_progress: Progress,
     overall_task_id: TaskID,
 ):
-    """
-    Download CVE records for the specified date range and save them to output_file.
-    Handles pagination and uses exponential backoff for retries.
-    """
+    """Downloads all CVE records for a specified date range, handling pagination."""
     print(f"Downloading CVEs from {start_date_str} to {end_date_str}...")
     vulnerabilities_list = []
     start_index = 0
-    total_results = -1  # Use -1 to indicate not yet known
+    total_results = -1
     download_status = "incomplete"
-
-    # Create a sub-task for progress within this range
     range_task = overall_progress.add_task(f"Chunk {output_file.name}...", total=None, parent=overall_task_id)
-
     retries_for_chunk = 0
     while retries_for_chunk < MAX_RETRIES:
         try:
@@ -154,34 +129,24 @@ def download_cves_for_range(
                 }
                 data = fetch_nist_page(client, params)
                 if data is None:
-                    # If fetch_nist_page returns None, it means all retries for that specific page failed.
-                    # We should break from this inner loop and try the whole chunk again (outer loop).
                     raise Exception("Failed to fetch page, retrying chunk.")
-
                 if total_results == -1:
                     total_results = data.get("totalResults", 0)
                     if total_results == 0:
                         print(f"[yellow]No CVEs found for this range ({start_date_str} to {end_date_str}).[/yellow]")
-                        overall_progress.update(range_task, total=0)  # Set total to 0 for this task
+                        overall_progress.update(range_task, total=0)
                         download_status = "complete"
-                        break  # No CVEs, exit inner loop
+                        break
                     overall_progress.update(range_task, total=total_results)
-
                 batch = data.get("vulnerabilities", [])
                 vulnerabilities_list.extend(batch)
                 start_index += len(batch)
                 overall_progress.update(range_task, advance=len(batch))
-
                 if start_index >= total_results:
                     download_status = "complete"
-                    break  # All pages retrieved for this range
-
-                # Respect NIST rate limits between pages within a chunk
+                    break
                 time.sleep(REQUEST_DELAY_SECONDS)
-
-            # If we reached here, the chunk download either completed or found no CVEs
-            break  # Exit the outer retry loop for the chunk
-
+            break
         except Exception as e:
             print(f"[bold red]Error downloading chunk {output_file.name}: {e}[/bold red]")
             retries_for_chunk += 1
@@ -191,463 +156,345 @@ def download_cves_for_range(
                 time.sleep(delay)
             else:
                 print(f"[bold red]Failed to download chunk {output_file.name} after {MAX_RETRIES} retries.[/bold red]")
-                download_status = "failed"  # Mark as failed if all chunk retries exhausted
-
-    overall_progress.remove_task(range_task)  # Remove sub-task after completion/failure
-
+                download_status = "failed"
+    overall_progress.remove_task(range_task)
     result = {
         "totalResults": len(vulnerabilities_list),
         "vulnerabilities": vulnerabilities_list,
         "download_status": download_status,
     }
     try:
-        with open(output_file, "w") as f:
-            json.dump(result, f, indent=2)  # Save the result as JSON
+        with open(output_file, "w", encoding="utf-8") as f:
+            json.dump(result, f, indent=2)
         print(f"[green]Data saved to {output_file} with status '{download_status}'.[/green]")
     except IOError as e:
-        print(f"[bold red]File Error:[/bold red] Could not write to {output_file}: {e}[bold red]")
+        print(f"[bold red]File Error:[/bold red] Could not write to {output_file}: {e}")
 
 
 def is_error_file(file_path: Path) -> bool:
-    """
-    Check if the JSON file at file_path contains an error or empty result,
-    or if its download_status is not 'complete'.
-    """
+    """Checks if a downloaded JSON file is incomplete or indicates a failure."""
     try:
-        with open(file_path, "r") as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             data = json.load(f)
-
-        # Check for the original error condition (empty result)
-        if data.get("totalResults") == 0 and not data.get("vulnerabilities"):
-            return True
-
-        # Check for the new download_status indicating issues
-        if "download_status" not in data or data["download_status"] != "complete":
+        if data.get("download_status") != "complete":
             print(f"[yellow]File {file_path.name} has download status '{data.get('download_status', 'unknown')}'. Flagging for re-download.[/yellow]")
             return True
-
-        # Consider if totalResults doesn't match the actual number of vulnerabilities downloaded
-        # This is a strong indicator of an incomplete download
         if len(data.get("vulnerabilities", [])) != data.get("totalResults", 0):
-            print(f"[yellow]File {file_path.name} has totalResults={data['totalResults']} but contains {len(data.get('vulnerabilities', []))} vulnerabilities. Flagging for re-download.[/yellow]")
+            print(f"[yellow]File {file_path.name} has mismatched counts. Flagging for re-download.[/yellow]")
             return True
-
-        return False  # File appears valid and complete
+        return False
     except (FileNotFoundError, json.JSONDecodeError) as e:
         print(f"[yellow]Error reading or decoding {file_path.name}: {e}. Flagging for re-download.[/yellow]")
-        return True  # Treat missing or invalid JSON file as an error file
+        return True
     except Exception as e:
         print(f"[bold red]Unexpected error checking {file_path.name}: {e}. Flagging for re-download.[/bold red]")
         return True
 
 
 def generate_date_chunks_for_year(year: int, chunk_days: int = CHUNK_DAYS):
-    """
-    Generate date chunks for a given year. Each chunk is a tuple:
-    (start_date_iso, end_date_iso, part_number)
-    """
+    """Generates date chunks for a given year to use in API requests."""
     chunks = []
     start_dt = datetime(year, 1, 1)
     end_dt = datetime(year, 12, 31)
     part = 1
     current_start = start_dt
     while current_start <= end_dt:
-        current_end = min(current_start + timedelta(days=chunk_days) - timedelta(seconds=1), end_dt)
-        chunks.append((isoformat_utc(current_start), isoformat_utc(current_end), part))
-        current_start = current_end + timedelta(seconds=1)
+        current_end = min(current_start + timedelta(days=chunk_days - 1), end_dt)
+        chunks.append((isoformat_utc(current_start, start=True), isoformat_utc(current_end, start=False), part))
+        current_start = current_end + timedelta(days=1)
         part += 1
     return chunks
 
+# --- Upload Command Helpers ---
 
 def api_request_with_retry(api_client, method, url, **kwargs):
     """Makes an API request with retry logic for 5xx errors and network issues."""
+    cve_id_for_log = kwargs.get('params', {}).get('cveID', 'N/A')
     for attempt in range(MAX_RETRIES):
         try:
             response = getattr(api_client, method)(url, **kwargs)
-            # Accept 409 for POST as a valid outcome
-            if method == "post" and response.status_code == 409:
+            
+            if method.upper() == "GET" and response.status_code == 404:
+                return response
+            if method.upper() == "POST" and response.status_code == 409:
                 return response
             if 500 <= response.status_code < 600:
-                print(f"[yellow]API {method.upper()} to {url} failed with {response.status_code}. Retrying in {API_RETRY_DELAY * (attempt + 1)}s...[/yellow]")
+                print(f"[yellow]API {method.upper()} to {url} for CVE {cve_id_for_log} failed with {response.status_code}. Retrying in {API_RETRY_DELAY * (attempt + 1)}s...[/yellow]")
                 time.sleep(API_RETRY_DELAY * (attempt + 1))
+                if attempt == MAX_RETRIES - 1:
+                    response.raise_for_status()
                 continue
             response.raise_for_status()
             return response
         except httpx.RequestError as e:
-            print(f"[red]Network error on {method.upper()} {url}: {e} (Attempt {attempt + 1}/{MAX_RETRIES})[/red>")
+            print(f"[red]Network/Request error on {method.upper()} {url} for CVE {cve_id_for_log}: {e} (Attempt {attempt + 1}/{MAX_RETRIES})[/red]")
             if attempt == MAX_RETRIES - 1:
                 raise
             time.sleep(API_RETRY_DELAY * (attempt + 1))
-    print(f"[red]API {method.upper()} to {url} failed after {MAX_RETRIES} retries.[/red]")
+    
+    print(f"[red]API {method.upper()} to {url} for CVE {cve_id_for_log} failed after {MAX_RETRIES} retries.[/red]")
     return None
 
+def get_existing_vulnerability(api_client: ApiClient, cve_id: str) -> tuple[Optional[str], str]:
+    """
+    Checks if a vulnerability exists via the API.
+    Returns a tuple of (vuln_id, status) where status is 'found', 'not_found', or 'error'.
+    """
+    try:
+        response = api_request_with_retry(api_client, "get", "/vulnerability_records", params={"cveID": cve_id})
+        if response is None:
+            return None, 'error'
+        if response.status_code == 404:
+            return None, 'not_found'
+        
+        data = response.json()
+        
+        if isinstance(data, list):
+            if not data: return None, 'not_found'
+            if len(data) > 1: print(f"[yellow]Warning: Multiple records found for {cve_id}. Using the first one.[/yellow]")
+            record = data[0]
+        elif isinstance(data, dict):
+             record = data
+        else:
+            print(f"[red]Error: Unexpected response format for {cve_id}. Got {type(data)}[/red]")
+            return None, 'error'
 
-def process_record(api_client: ApiClient, vuln_source_data: Dict[str, Any], force_upload: bool, uploaded_cves_tracking: Dict[str, str]) -> str:
-    """ 
-    Processes a single CVE record: checks existence, transforms, and uploads/updates.
-    Returns a string outcome: 'created', 'updated', 'skipped_*', 'error_*'.
+        vuln_id = record.get("vulnID")
+        return (str(vuln_id), 'found') if vuln_id else (None, 'error')
+            
+    except (httpx.RequestError, httpx.HTTPStatusError, json.JSONDecodeError) as e:
+        print(f"[red]API communication error checking for {cve_id}: {e}[/red]")
+        return None, 'error'
+
+def transform_vulnerability(vuln_source_data: Dict[str, Any], existing_vulnID: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """Transforms vulnerability data from NIST format to the API payload format."""
+    try:
+        cve = vuln_source_data.get("cve", {})
+        cveID = cve.get("id")
+        if not cveID:
+            print("[red]Error: Source data is missing 'cve.id'. Cannot transform.[/red]")
+            return None
+
+        descriptions = cve.get("descriptions", [])
+        description_en = next((d.get("value") for d in descriptions if d.get("lang") == "en"), "No description provided.")
+        published_date = (cve.get("published") or "")[:10]
+        last_updated_date = (cve.get("lastModified") or "")[:10]
+        cwe_ids = []
+        for weakness in cve.get("weaknesses", []):
+            for desc in weakness.get("description", []):
+                if desc.get("lang") == "en" and desc.get("value", "").startswith("CWE-"):
+                    cwe_ids.append(desc["value"])
+        cweIDs_payload = sorted(list(set(cwe_ids))) or ["N/A"]
+        nist_base_score = 0.0
+        metrics = cve.get("metrics", {})
+        for metric_version in ["cvssMetricV31", "cvssMetricV30", "cvssMetricV2"]:
+            metric_list = metrics.get(metric_version, [])
+            if metric_list:
+                primary_metric = next((m for m in metric_list if m.get("type") == "Primary"), metric_list[0])
+                if isinstance(primary_metric.get("cvssData", {}).get("baseScore"), (int, float)):
+                    nist_base_score = float(primary_metric["cvssData"]["baseScore"])
+                    break
+                elif 'baseScore' in primary_metric and isinstance(primary_metric['baseScore'], (int, float)):
+                    nist_base_score = float(primary_metric['baseScore'])
+                    break
+        
+        payload = {
+            "cveID": cveID,
+            "name": f"Vulnerability {cveID}",
+            "description": description_en,
+            "mitigation": "No mitigation available.",
+            "last_updated_date": last_updated_date,
+            "published_date": published_date,
+            "nist_base_score": nist_base_score,
+            "cweIDs": cweIDs_payload,
+            "tags": ["Auto-Generated"],
+            "affected_systems": ["Unknown"],
+            "raw_data": json.loads(json.dumps(vuln_source_data, default=str))
+        }
+        if existing_vulnID: payload["vulnID"] = existing_vulnID
+        return payload
+    except Exception as e:
+        cve_id_for_log = vuln_source_data.get("cve", {}).get("id", "UNKNOWN")
+        print(f"[red]Error during transformation for {cve_id_for_log}: {e}[/red]")
+        return None
+
+def process_record(api_client: ApiClient, vuln_source_data: Dict[str, Any], force: bool, update: bool, tracking_info: Optional[Dict[str, str]]) -> tuple:
+    """
+    Processes a single CVE record, returning an outcome tuple for aggregation.
+    Return format: (outcome_str, cve_id, last_modified, vuln_id)
     """
     cve_info = vuln_source_data.get("cve", {})
     cve_id = cve_info.get("id")
     if not cve_id:
-        return "skipped_no_cve_id"
-    nist_last_modified = cve_info.get("lastModified")
+        return ("skipped_no_cve_id", None, None, None)
+    
+    last_modified = cve_info.get("lastModified")
+    
+    is_tracked = tracking_info and tracking_info.get("vulnID")
+    is_modified = not tracking_info or tracking_info.get("lastModified") != last_modified
 
-    # Check if already uploaded and unmodified, unless --force is used
-    if not force_upload and cve_id in uploaded_cves_tracking and uploaded_cves_tracking[cve_id] == nist_last_modified:
-        return "skipped_unmodified"
+    # --- UPDATE PATH ---
+    # An update can only happen if the --update flag is used.
+    if update and (is_tracked or get_existing_vulnerability(api_client, cve_id)[0]):
+        # If --force is used, update regardless of modification date.
+        # Otherwise, only update if the record has been modified.
+        if force or is_modified:
+            # Determine the vulnID, from tracking if possible, otherwise from the API.
+            vuln_id = (tracking_info.get("vulnID") if is_tracked else get_existing_vulnerability(api_client, cve_id)[0])
+            if not vuln_id:
+                return ("error_get_failed", cve_id, None, None)
+            
+            payload = transform_vulnerability(vuln_source_data, vuln_id)
+            if not payload: return ("error_transform_failed", cve_id, None, None)
+            try:
+                api_request_with_retry(api_client, "put", f"/vulnerability_records/{vuln_id}", json=payload)
+                time.sleep(UPDATE_DELAY_SECONDS)
+                return ("updated", cve_id, last_modified, vuln_id)
+            except Exception as e:
+                print(f"[bold red]Exception during PUT for {cve_id}: {e}[/bold red]")
+                return ("error_update_failed", cve_id, None, None)
+        else:
+            # --update flag was used, but the record was not modified.
+            return ("skipped_unmodified", cve_id, last_modified, tracking_info.get("vulnID"))
 
+    # --- SKIP EXISTING PATH ---
+    # If not in update mode, skip any existing record.
+    if not update and (is_tracked or get_existing_vulnerability(api_client, cve_id)[0]):
+        return ("skipped_existing", cve_id, last_modified, tracking_info.get("vulnID") if is_tracked else get_existing_vulnerability(api_client, cve_id)[0])
+
+    # --- CREATE PATH ---
+    # If we reach here, the record is new.
+    payload = transform_vulnerability(vuln_source_data, None)
+    if not payload: return ("error_transform_failed", cve_id, None, None)
     try:
-        # 1. Check if CVE exists in wafrunner
-        existing_records = api_request_with_retry(api_client, "get", "/vulnerability_records", params={"cveID": cve_id})
-
-        existing_vulnID = None
-        if existing_records and isinstance(existing_records, list) and len(existing_records) > 0:
-            if len(existing_records) > 1:
-                print(
-                    f"[yellow]Warning: Multiple records found for {cve_id}. Using first one.[/yellow]"
-                )
-            existing_vulnID = existing_records[0].get("vulnID")
-
-        # 2. Transform data from NIST format to wafrunner format
-        payload = transform_vulnerability(vuln_source_data, existing_vulnID)
-        if not payload:
-            return "error_transform_failed"
-
-        # 3. Create or Update the record in wafrunner
-        if existing_vulnID:
-            # UPDATE
-            response = api_request_with_retry(api_client, "put", f"/vulnerability_records/{existing_vulnID}", json=payload)
-            if response.status_code == 200:
-                uploaded_cves_tracking[cve_id] = nist_last_modified
-                time.sleep(UPDATE_DELAY_SECONDS)  # Delay on successful update
-                return "updated"
-            else:
-                print(
-                    # Only print first 100 chars of response text to avoid overly long messages
-                    f"[red]Update for {cve_id} ({existing_vulnID}) failed: {response.status_code} {response.text[:100]}[/red]"
-                )
-                return "error_update_failed"
-        else: # Trying to create
-            # CREATE
-            response = api_request_with_retry(api_client, "post", "/vulnerability_records", json=payload)
-            if response.status_code in [200, 201]:
-                uploaded_cves_tracking[cve_id] = nist_last_modified  # Track on successful create
-                time.sleep(UPDATE_DELAY_SECONDS)  # Delay on successful create
-                return "created"
-            elif response.status_code == 409 and RETRY_GET_ON_CONFLICT:  # Conflict, try GET again
-                print(f"[yellow]Warning: Create for CVE {cve_id} failed with 409 Conflict. Retrying GET to see if record exists...[/yellow]")
-                # Retry the GET to check if it now exists
-                existing_records = api_request_with_retry(api_client, "get", "/vulnerability_records", params={"cveID": cve_id})
-                if existing_records and isinstance(existing_records, list) and len(existing_records) > 0:
-                    existing_vulnID = existing_records[0].get("vulnID")
-                    print(f"[green]CVE {cve_id} now found after retry. Updating record {existing_vulnID}.[/green]")
-                    # Update the record using PUT
-                    response = api_request_with_retry(api_client, "put", f"/vulnerability_records/{existing_vulnID}", json=payload)
-                    if response.status_code == 200:
-                        uploaded_cves_tracking[cve_id] = nist_last_modified
-                        time.sleep(UPDATE_DELAY_SECONDS)  # Delay on successful update
-                        return "updated"
-                    else:
-                        print(
-                            f"[red]Update for {cve_id} ({existing_vulnID}) failed: {response.status_code} {response.text[:100]}[/red]"
-                        )
-                        return "error_update_failed"
-                else:
-                    print(f"[yellow]Warning: Create for CVE {cve_id} still failing after get retry. Treating as success.[/yellow]")
-                    uploaded_cves_tracking[cve_id] = nist_last_modified # Treat as success, so track it
-                    return "skipped_conflict"
-            elif response.status_code == 409:  # Conflict, already exists
-                print(f"[yellow]Warning: Create for CVE {cve_id} failed with 409 Conflict. Record likely created by another process. Treating as success.[/yellow]")
-                uploaded_cves_tracking[cve_id] = nist_last_modified # Treat as success, so track it
-                return "skipped_conflict"
-            else:
-                print(
-                    # Only print first 100 chars of response text to avoid overly long messages
-                    f"[red]Create for {cve_id} failed: {response.status_code} {response.text[:100]}[/red]"
-                )
-                return "error_create_failed"
-
-    except AuthenticationError as e:
-        # This will be caught by the main try/except block in the command
-        raise e
+        response = api_request_with_retry(api_client, "post", "/vulnerability_records", json=payload)
+        if response.status_code in [200, 201]:
+            new_vuln_id = response.json().get("vulnID")
+            time.sleep(UPDATE_DELAY_SECONDS)
+            return ("created", cve_id, last_modified, new_vuln_id)
+        elif response.status_code == 409:
+            print(f"[yellow]Warning: Create for {cve_id} failed with 409 Conflict.[/yellow]")
+            return ("skipped_conflict", cve_id, None, None)
+        else:
+            return ("error_create_failed", cve_id, None, None)
     except Exception as e:
-        print(f"[bold red]Error processing {cve_id}: {e}[/bold red]")
-        return "error_processing_record"
+        print(f"[bold red]Exception during POST for {cve_id}: {e}[/bold red]")
+        return ("error_create_failed", cve_id, None, None)
 
+# --- Typer Commands ---
 
 @app.command()
 def download(
-    year: int = typer.Option(
-        ...,  # ... makes this a required option
-        "--year",
-        "-y",
-        help="The year of the CVEs to download from NIST.",
-    ),
-    output_dir: Optional[Path] = typer.Option(
-        None,
-        "--output-dir",
-        "-o",
-        help="Directory to save CVE files. Defaults to '~/.wafrunner/data/cve-sources/'.",
-        file_okay=False,
-        dir_okay=True,
-        writable=True,
-        resolve_path=True,
-    ),
-    update: bool = typer.Option(
-        False,
-        "--update",
-        "-u",
-        help="Update mode: re-download data even if files already exist and appear valid.",
-    ),
+    year: int = typer.Option(..., "--year", "-y", help="The year of the CVEs to download."),
+    output_dir: Optional[Path] = typer.Option(None, "--output-dir", "-o", help="Directory to save CVE files."),
+    update: bool = typer.Option(False, "--update", "-u", help="Re-download data even if files exist."),
 ):
-    """
-    Download CVE data for a specific year from the NIST NVD API.
-    """
-    if output_dir is None:
-        output_dir = get_default_cve_path()
+    """Download CVE data for a specific year from the NIST NVD API."""
+    if output_dir is None: output_dir = get_default_cve_path()
     output_dir.mkdir(parents=True, exist_ok=True)
-
-    print(f"Initializing CVE download for the year [bold cyan]{year}[/bold cyan] from NIST...")
-    print(f"Data will be saved to [green]{output_dir}[/green]. Update mode: {update}")
-
+    print(f"Initializing CVE download for [bold cyan]{year}[/bold cyan]...")
     chunks = generate_date_chunks_for_year(year)
-    total_chunks = len(chunks)
-
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        BarColumn(),
-        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-        TextColumn("({task.completed} of {task.total})"),
-        TimeRemainingColumn(),
-        transient=False, # Keep progress bar visible until finished
-    ) as overall_progress:
-        overall_task = overall_progress.add_task(f"Processing {total_chunks} date chunks for {year}...", total=total_chunks)
-
+    with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), BarColumn(), TextColumn("[progress.percentage]{task.percentage:>3.0f}%"), TextColumn("({task.completed} of {task.total})"), TimeRemainingColumn(), transient=False) as progress:
+        task = progress.add_task(f"Processing chunks for {year}...", total=len(chunks))
         with httpx.Client(base_url=NIST_API_BASE_URL, timeout=60.0) as client:
-            for i, (start_date_str, end_date_str, part_num) in enumerate(chunks):
-                file_name = f"nvd-cves-{year}-{part_num}.json"
-                output_path = output_dir / file_name
-
-                if output_path.exists() and not update:
-                    if not is_error_file(output_path):
-                        print(f"[green]File {output_path.name} already exists and appears valid. Skipping.[/green]")
-                        overall_progress.update(overall_task, advance=1)
-                        continue
-                    else:
-                        print(f"[yellow]File {output_path.name} exists but is incomplete or has errors. Re-downloading.[/yellow]")
-                elif output_path.exists() and update:
-                    print(f"[yellow]File {output_path.name} exists, but re-downloading due to --update flag.[/yellow]")
-
-                download_cves_for_range(
-                    client, start_date_str, end_date_str, output_path, overall_progress, overall_task
-                )
-
-                overall_progress.update(overall_task, advance=1)
-                if i < total_chunks - 1:
-                    time.sleep(REQUEST_DELAY_SECONDS)  # Delay between chunks
-
-    print("\n[bold green]✔ All CVE data download attempts finished.[/bold green]")
+            for i, (start_str, end_str, part) in enumerate(chunks):
+                path = output_dir / f"nvd-cves-{year}-{part}.json"
+                if path.exists() and not update and not is_error_file(path):
+                    print(f"[green]File {path.name} is valid. Skipping.[/green]")
+                    progress.update(task, advance=1)
+                    continue
+                download_cves_for_range(client, start_str, end_str, path, progress, task)
+                progress.update(task, advance=1)
+                if i < len(chunks) - 1: time.sleep(REQUEST_DELAY_SECONDS)
+    print("\n[bold green]✔ Download process finished.[/bold green]")
 
 
 @app.command()
 def upload(
-    input_dir: Optional[Path] = typer.Option(
-        None,
-        "--input-dir",
-        "-i",
-        help="Directory with CVE JSON files. Defaults to '~/.wafrunner/data/cve-sources/'.",
-        exists=True,
-        file_okay=False,
-        dir_okay=True,
-        readable=True,
-        resolve_path=True,
-    ),
-    max_workers: int = typer.Option(
-        20, "--max-workers", help="Max number of parallel workers for API calls."
-    ),
-    force: bool = typer.Option(
-        False,
-        "--force",
-        "-f",
-        help="Force upload of all CVEs, even if they appear unmodified.",
-    ),
+    input_dir: Optional[Path] = typer.Option(None, "--input-dir", "-i", help="Directory containing CVE JSON files."),
+    max_workers: int = typer.Option(20, "--max-workers", help="Max number of parallel workers."),
+    update: bool = typer.Option(False, "--update", "-u", help="Allow updating of existing CVE records."),
+    force: bool = typer.Option(False, "--force", "-f", help="Force update of existing records, regardless of modification date. Requires --update."),
 ):
-    """
-    Upload CVEs from local JSON files to the wafrunner system.
-    """
-    if input_dir is None:
-        input_dir = get_default_cve_path()
-        if not input_dir.exists():
-            print(
-                f"[bold red]Error:[/bold red] Default directory {input_dir} does not exist. "
-                "Please run 'cve download' first or specify an --input-dir."
-            )
-            raise typer.Exit(code=1)
+    """Upload CVEs from local JSON files to the remote system."""
+    if input_dir is None: input_dir = get_default_cve_path()
+    if not input_dir.exists():
+        print(f"[bold red]Error:[/bold red] Directory {input_dir} does not exist.")
+        raise typer.Exit(code=1)
+    if force and not update:
+        print("[bold red]Error:[/bold red] --force can only be used in combination with --update.")
+        raise typer.Exit(code=1)
 
     print(f"Starting CVE upload from [green]{input_dir}[/green]...")
-
     try:
-        api_client = ApiClient()  # Check for token early
-
+        api_client = ApiClient()
         json_files = glob.glob(str(input_dir / "*.json"))
         if not json_files:
             print(f"[yellow]No JSON files found in {input_dir}.[/yellow]")
-            raise typer.Exit()
+            raise typer.Exit(code=1)
 
         uploaded_cves_tracking = load_uploaded_cves_tracking()
-        all_records = []
-        print("Reading and parsing JSON files...")
+        
+        unique_cves = {}
+        print("Reading, parsing, and de-duplicating JSON files...")
         for file_path in json_files:
             try:
-                # Use utf-8 encoding as specified in the reference script
-                with open(file_path, "r", encoding='utf-8') as f:
-                    data = json.load(f)
-                
-                vulnerabilities_in_file = []
-                if isinstance(data, dict) and 'cve' in data and 'vulnerabilities' not in data:
-                    # Single CVE object at root, like {"cve": {...}}
-                    vulnerabilities_in_file = [data]
-                elif isinstance(data, dict) and 'vulnerabilities' in data:
-                    # NVD JSON format: {"vulnerabilities": [...]}
-                    vulnerabilities_in_file = data['vulnerabilities']
-                elif isinstance(data, list):
-                    # Just a list of CVE objects
-                    vulnerabilities_in_file = data
-                else:
-                    print(f"[yellow]Warning: Unrecognized JSON structure in {Path(file_path).name}. Skipping file.[/yellow]")
-                    continue # Skip this file if structure is not recognized
-
-                valid_records = [v for v in vulnerabilities_in_file if isinstance(v, dict)]
-                num_invalid_records = len(vulnerabilities_in_file) - len(valid_records)
-                if num_invalid_records > 0:
-                    print(f"[yellow]Warning: Skipped {num_invalid_records} invalid records (not dictionaries) in {Path(file_path).name}.[/yellow]")
-                all_records.extend(valid_records)
+                with open(file_path, "r", encoding='utf-8') as f: data = json.load(f)
+                for record in data.get('vulnerabilities', []):
+                    cve_id = record.get("cve", {}).get("id")
+                    last_mod = record.get("cve", {}).get("lastModified")
+                    if cve_id and last_mod and (cve_id not in unique_cves or last_mod > unique_cves[cve_id].get("cve",{}).get("lastModified")):
+                        unique_cves[cve_id] = record
             except (json.JSONDecodeError, IOError) as e:
-                print(f"[yellow]Warning: Could not read or parse {file_path}: {e}[/yellow]")
-        total_records = len(all_records)
-        print(f"Found {total_records} CVE records to process.")
+                print(f"[yellow]Warning: Could not process {file_path}: {e}[/yellow]")
+        
+        records_to_process = list(unique_cves.values())
+        total_records = len(records_to_process)
+        print(f"Found {total_records} unique CVE records to process.")
+        if total_records == 0:
+            print("[yellow]No valid records found to upload.[/yellow]")
+            raise typer.Exit(code=1)
+
         outcomes = Counter()
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-            TextColumn("({task.completed} of {task.total})"),
-            TimeRemainingColumn(),
-        ) as progress:
+        with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), BarColumn(), TextColumn("[progress.percentage]{task.percentage:>3.0f}%"), TextColumn("({task.completed} of {task.total})"), TimeRemainingColumn()) as progress:
             task = progress.add_task("Uploading CVEs...", total=total_records)
-
             with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-                future_to_cve = {
-                    executor.submit(process_record, api_client, record, force, uploaded_cves_tracking): record
-                    for record in all_records
+                futures = {
+                    executor.submit(process_record, api_client, record, force, update, uploaded_cves_tracking.get(record.get("cve",{}).get("id"))): record
+                    for record in records_to_process
                 }
-
-                for future in concurrent.futures.as_completed(future_to_cve):
-                    result = future.result()
-                    outcomes[result] += 1
+                for future in concurrent.futures.as_completed(futures):
+                    outcome, cve_id, last_modified, vuln_id = future.result()
+                    outcomes[outcome] += 1
+                    if cve_id and last_modified and vuln_id:
+                        uploaded_cves_tracking[cve_id] = {"lastModified": last_modified, "vulnID": vuln_id}
                     progress.update(task, advance=1)
-
-        # Print summary
+        
         print("\n[bold green]✔ CVE upload process finished.[/bold green]")
-        print("--- Summary ---")
-        print(f"Successfully Created: [green]{outcomes['created']}[/green]")
-        print(f"Successfully Updated: [cyan]{outcomes['updated']}[/cyan]")
-        print(f"Skipped (Conflict): [yellow]{outcomes['skipped_conflict']}[/yellow]")
-        print(f"Skipped (Unmodified): [yellow]{outcomes['skipped_unmodified']}[/yellow]")
-        print(f"Skipped (No CVE ID): [yellow]{outcomes['skipped_missing_cveid']}[/yellow]")
+        table = Table(title="Upload Summary")
+        table.add_column("Outcome", style="cyan"); table.add_column("Count", style="magenta", justify="right")
+        table.add_row("Successfully Created", f"[green]{outcomes['created']}[/green]")
+        table.add_row("Successfully Updated", f"[cyan]{outcomes['updated']}[/cyan]")
+        table.add_row("Skipped (Existing, No --update)", f"[yellow]{outcomes['skipped_existing']}[/yellow]")
+        table.add_row("Skipped (Unmodified)", f"[yellow]{outcomes['skipped_unmodified']}[/yellow]")
+        table.add_row("Skipped (Conflict)", f"[yellow]{outcomes['skipped_conflict']}[/yellow]")
         total_errors = sum(v for k, v in outcomes.items() if k.startswith("error_"))
-        print(f"Errors: [bold red]{total_errors}[/bold red]")
+        table.add_row("Total Errors", f"[bold red]{total_errors}[/bold red]")
         if total_errors > 0:
-            print("  - Transform Failed:", outcomes["error_transform_failed"])
-            print("  - Create Failed:", outcomes["error_create_failed"])
-            print("  - Update Failed:", outcomes["error_update_failed"])
-            print("  - Record Processing Error:", outcomes["error_processing_record"])
+            for key, value in outcomes.items():
+                if key.startswith("error_") and value > 0: table.add_row(f"  - {key.replace('_', ' ').title()}", str(value))
+        print(table)
         
         save_uploaded_cves_tracking(uploaded_cves_tracking)
 
     except AuthenticationError as e:
-        print(f"[bold red]API Error:[/bold red] {e}")
-        raise typer.Exit(code=1)
+        print(f"[bold red]API Error:[/bold red] {e}"); raise typer.Exit(code=1)
     except Exception as e:
-        print(f"[bold red]An unexpected error occurred: {e}[/bold red]")
+        if not isinstance(e, typer.Exit): print(f"[bold red]An unexpected error occurred: {e}[/bold red]")
         raise typer.Exit(code=1)
-
 
 @app.command()
-def search(
-    keyword: str = typer.Option(..., "--keyword", "-k", help="Keyword to search for."),
-    output_file: Optional[Path] = typer.Option(
-        None,
-        "--output-file",
-        "-o",
-        help="File to save the search results to.",
-        dir_okay=False,
-        writable=True,
-        resolve_path=True,
-    ),
-):
-    """
-    Search for CVEs based on a keyword.
-    """
-    try:
-        api_client = ApiClient()
-        print(f"Searching for CVEs with keyword: [bold cyan]{keyword}[/bold cyan]...")
+def search(keyword: str):
+    """Search for CVEs (Placeholder)."""
+    print(f"Searching for: {keyword}")
 
-        # Search against the vulnerability records in the wafrunner system
-        results = api_client.get("/vulnerability_records/search", params={"keyword": keyword})
-
-        if not results:
-            print("[yellow]No results found.[/yellow]")
-            raise typer.Exit()
-
-        if output_file:
-            try:
-                with open(output_file, "w") as f:
-                    json.dump(results, f, indent=2)
-                print(f"\n[green]✔ Search results saved successfully to {output_file}[/green]")
-            except IOError as e:
-                print(f"[bold red]File Error:[/bold red] Could not write to file {output_file}. {e}")
-                raise typer.Exit(code=1)
-        else:
-            table = Table(title="CVE Search Results")
-            table.add_column("CVE ID", style="cyan", no_wrap=True)
-            table.add_column("Summary", style="magenta")
-            table.add_column("CVSS Score", justify="right", style="green")
-
-            # Assuming results is a list of dicts
-            for item in results:
-                score = item.get("score", "N/A")
-                table.add_row(
-                    item.get("cve_id", "N/A"), item.get("summary", "N/A"), str(score)
-                )
-            print(table)
-
-    except AuthenticationError as e:
-        print(f"[bold red]API Error:[/bold red] {e}")
-        if "403" in str(e):
-            print(
-                "[bold yellow]Hint:[/bold yellow] A '403 Forbidden' error means the server understands your request but refuses to authorize it. "
-                "Please check if your API token has the required permissions (scopes) to access this endpoint."
-            )
-        raise typer.Exit(code=1)
-    except httpx.RequestError:
-        # ApiClient prints detailed network errors, so we just exit.
-        raise typer.Exit(code=1)
-
-
-@app.command("get-vulnid")
-def get_vulnid(
-    cve_file: Path = typer.Option(
-        ..., "--cve-file", help="Path to the CVE file to look up."
-    ),
-    output_file: Optional[Path] = typer.Option(
-        None, "--output-file", help="File to save the VulnID to."
-    ),
-):
-    """
-    Look up the internal vulnerability ID for a given CVE file.
-    """
-    print(f"Placeholder for 'wafrunner cve get-vulnid' for file: {cve_file}")
