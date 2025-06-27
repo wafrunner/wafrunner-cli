@@ -4,6 +4,7 @@ from pathlib import Path
 import json
 import time
 from datetime import datetime
+from typing import Any, Dict
 
 from wafrunner_cli.commands.cve import app as cve_app
 from wafrunner_cli.core.exceptions import AuthenticationError
@@ -99,7 +100,7 @@ def test_upload_new_cve(
     result = runner.invoke(cve_app, ["upload", "--input-dir", "/tmp"])
 
     assert result.exit_code == 0
-    assert "Successfully Created: 1" in result.stdout
+    assert "Successfully Created: [green]1[/green]" in result.stdout
     mock_api_client.post.assert_called_once()
     mock_save_tracking.assert_called_once_with({cve_id: last_modified})
 
@@ -245,7 +246,9 @@ def test_upload_api_error_not_tracked(
     cve_id = "CVE-2023-0006"
     last_modified = "2023-01-01T00:00:00.000Z"
     mock_api_client.get.return_value = None
-    mock_api_client.post.return_value = mocker.Mock(status_code=500)  # API error
+    mock_api_client.post.return_value = mocker.Mock(
+        status_code=500, text="Internal Server Error"
+    )  # API error
     mocker.patch(
         "glob.glob",
         return_value=[Path("/tmp/cve_data.json")],
