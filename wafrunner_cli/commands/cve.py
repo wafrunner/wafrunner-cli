@@ -420,6 +420,8 @@ def download(
                         continue
                     else:
                         print(f"[yellow]File {output_path.name} exists but is incomplete or has errors. Re-downloading.[/yellow]")
+                elif output_path.exists() and update:
+                    print(f"[yellow]File {output_path.name} exists, but re-downloading due to --update flag.[/yellow]")
 
                 download_cves_for_range(
                     client, start_date_str, end_date_str, output_path, overall_progress, overall_task
