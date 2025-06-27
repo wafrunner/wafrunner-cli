@@ -1,9 +1,6 @@
 site_name: wafrunner-cli
 site_description: "wafrunner Command Line Interface"
 
-# TODO: Update with your actual repository URL for a link to appear in the header.
-# repo_url: https://github.com/your-username/wafrunner-cli
-
 repo_name: wafrunner/wafrunner-cli
 repo_url: https://github.com/wafrunner/wafrunner-cli
 
@@ -38,4 +35,9 @@ plugins:
 nav:
   - Home: index.md
   - API Reference: reference.md
-  - Usage: usage/basic-commands.md
+  - Usage:
+    - Basic Commands: usage/basic-commands.md
+    - Research Commands: usage/research-commands.md
+    - Configuring the CLI: usage/configure-cli.md
+    - Data Commands: usage/data-commands.md
+    - CVE Commands: usage/cve-commands.md
