@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wafrunner-cli"
+version = "0.0.1"
+authors = [
+  { name="Sam", email="sam@example.com" },
+]
+description = "wafrunner Command Line Interface"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "typer[all]",
+    "httpx",
+    "prompt-toolkit",
+]
+
+[project.scripts]
+wafrunner = "wafrunner_cli.main:app"
+
+[tool.setuptools]
+packages = ["wafrunner_cli"]
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+    "pytest-mock",
+]
