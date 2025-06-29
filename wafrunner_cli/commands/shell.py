@@ -20,28 +20,24 @@ def _get_typer_completions(app: typer.Typer) -> dict:
 
     # Get command groups (sub-typers)
     for group in app.registered_groups:
-        # group.typer_instance is the actual Typer app for the subcommand
         completions[group.name] = _get_typer_completions(group.typer_instance)
 
     # Get standalone commands and their options
     for command_info in app.registered_commands:
         if command_info.name == "shell":
             continue
-
         if not command_info.callback:
             continue
-        # Get all option names for the command (e.g., '--force', '--year')
+
         opts = []
         signature = inspect.signature(command_info.callback)
         for param in signature.parameters.values():
-            # This function converts a function parameter to a click.Parameter
             click_param, _ = typer_main.get_click_param(param)
-            # We are only interested in options, not arguments
             if isinstance(click_param, (typer_main.click.Option)):
-                opts.extend(opt for opt in click_param.opts if opt.startswith('--'))
+                opts.extend(opt for opt in click_param.opts if opt and opt.startswith('--'))
 
-        # If a command has options, use a completer for them, otherwise, it's the end of the path.
-        completions[command_info.name] = FuzzyWordCompleter(opts) if opts else {}
+        # Filter out None and ensure correct structure for NestedCompleter
+        completions[command_info.name] = {opt: None for opt in opts if opt} if opts else None
 
     return completions
 

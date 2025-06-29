@@ -1,0 +1,1675 @@
+{
+    "run_timestamp": "2025-06-29T01:26:06.545766+00:00",
+    "mode": "Standard",
+    "threads": 16,
+    "input_collection": "Unsupported",
+    "input_vulnid": null,
+    "summary": {
+        "processed_vulnIDs": 131,
+        "total_vulnIDs_in_collection": 131,
+        "total_triggered_ok": 148,
+        "total_trigger_failed": 0,
+        "total_skipped_scrape": 23,
+        "total_skipped_classify": 0,
+        "total_skipped_linkid": 0,
+        "total_error_fetching_sources": 0,
+        "processing_time_seconds": 32.83
+    },
+    "details_per_vulnID": [
+        {
+            "vulnID": "d19c5c3c-cc06-4166-b9f9-63e385947515",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "c400b32f-cdf4-4050-aa5f-3f866d1dc0fe",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "20487515-dcb3-4aa8-a884-a6944718520c",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "6840072d-f36c-4fd6-b90a-8ee713d2d78c",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "7081efbf-7288-4e78-8ca6-0d2c37f47dd7",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "a66ac909-c4eb-4ea5-b595-05ab0102c7f4",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "cf51e3af-8887-4019-930c-c9e3e93b181b",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "27b22941-4d14-4dba-9446-61d0647a3b8d",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "3ea93a8a-6948-475f-8ce3-4d5250d743f2",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "546b5f73-5598-4926-aecf-9e257bfd14a6",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "4c079356-3959-43cc-b08d-94b87f433536",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "37b02209-9acf-46e4-bbf0-b47846da7f2c",
+            "status": "processed",
+            "sources_found": 1,
+            "triggered_ok": [
+                "f5306b6a-bea4-4264-bd7e-2b1cb6ae5393"
+            ],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "f7e7682e-3bfa-4ec5-bb36-620e85e7cc9b",
+            "status": "processed",
+            "sources_found": 1,
+            "triggered_ok": [
+                "8f75ab79-b0a3-4c0c-bc04-6734b93478ba"
+            ],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "d2916412-a81f-4c65-945f-19c659b18e84",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "0efd4989-2bac-4a18-a9f3-3a3ecf69bb47",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "b6bf1595-1766-4ed3-933b-14f58eb601e7",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "78921b63-75c3-4d8b-b1ce-0e0c4e73fb20",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "93c22100-e402-4b47-aa76-c032ebba890d",
+            "status": "processed",
+            "sources_found": 1,
+            "triggered_ok": [
+                "77890194-7218-4aa7-9ea0-4d83efabc3a4"
+            ],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "0cd92e31-5291-47ed-a9d9-d7458648d9da",
+            "status": "processed",
+            "sources_found": 1,
+            "triggered_ok": [
+                "2b7fca2f-51bf-4bec-b367-958b5eaf5e48"
+            ],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "2b9c6e56-28d7-44ef-92f9-dc3aad46c402",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "4a3f4c27-b3c0-406c-99f0-74ec44fd9e13",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "4bb4f6e9-27f2-48ba-94f8-84054fc461fb",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "7bfb6d17-35da-4b09-bec1-826743d1921a",
+            "status": "processed",
+            "sources_found": 2,
+            "triggered_ok": [
+                "11305b3a-b50d-44f7-91c3-989d29e845fe",
+                "bc062f7e-0bf2-4ad5-879e-e4ded99ac658"
+            ],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "54d004f3-256f-44bc-954d-ba7bd67938b4",
+            "status": "processed",
+            "sources_found": 1,
+            "triggered_ok": [
+                "e138188e-e3f6-4431-9c70-5fd64caf3618"
+            ],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "969dd807-7c6d-4502-82de-eb2ec3fa1b13",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "02a9c85f-87e1-4cff-951a-145ad8496321",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "0f4f45e2-cd35-48af-9264-5907130287f8",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "7c61ab92-7a4a-43a3-a49a-c6f803d1bfd5",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "3a68aa2c-8d55-4b21-8d30-4fa2ac8b295b",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "b73c01da-9f14-478d-9a30-edbcf3e5bb74",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "50f60968-17d1-431c-8d03-72991c5e97be",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "6acb91c9-948d-4618-a6e0-3638d720ffba",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "8afc3063-ca20-41c4-8886-f3b8ab6b873d",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "ff105dc5-9738-4480-9695-96225b00fb48",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "7567f92e-f873-4069-9604-600f78743e67",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "2a7ffeb0-344d-447c-b134-64adcb5942ae",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "af144bae-082e-4432-a973-c300c076ceb7",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "443c60db-76ab-45cc-83c1-655148acd13d",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "302becf1-cfc4-4092-b16a-02ca8240513e",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "74de65db-34d3-4d44-b645-a6af96336ac7",
+            "status": "processed",
+            "sources_found": 3,
+            "triggered_ok": [
+                "6f718312-e596-4e45-a99c-9664460915ef",
+                "74499e2f-bfb2-4386-8912-3f167709e08f",
+                "b025d831-a7e9-4ae4-82f4-83c523b95ca3"
+            ],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "8d988c18-8eec-4fb7-9e0c-b44dcf5ba87f",
+            "status": "processed",
+            "sources_found": 1,
+            "triggered_ok": [
+                "2a4535b5-fde8-43bf-a97f-fcf93a14a93d"
+            ],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "9811dde9-6228-4709-b7ed-da184e3dc0e1",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "e2e6b553-6d0d-4201-84d2-2511906ca1d4",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "4e94dc97-3f72-49bb-a30f-62da03b63a1f",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "fb8ab271-ad6b-410f-b52e-47da8680d5e3",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "73062f79-b3a9-474f-b3e6-96e214282652",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "bed7ee93-219f-4025-bae9-f95c29d5b397",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "ac907270-cacb-4bd4-af5e-abab4195bd87",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "589257ad-a913-4d3c-ba02-80b1b960e33a",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "b03f8f4c-aa44-4ebe-8a48-73134aedcd14",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "a2767e1e-88ce-4399-a40e-3757d1c72e4c",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "22282a1d-644a-4855-ae82-0bbe04fb0fe6",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "5dae0871-4841-43c3-8ff1-f41274eb3047",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "87059401-f036-4a47-a11b-8dbadad72130",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "2119baf1-83c0-43e6-9595-c4f1d20b4898",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "396da5e3-4634-4814-8dc1-736aacbade9a",
+            "status": "processed",
+            "sources_found": 1,
+            "triggered_ok": [
+                "b09f4df7-f102-44a4-a505-dcd04ebca35e"
+            ],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "96ae3b64-b091-466d-903b-2a4029592d28",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "9ae91679-58f1-4255-b2f0-c318455da279",
+            "status": "processed",
+            "sources_found": 2,
+            "triggered_ok": [
+                "fabf0079-516e-4117-b1ab-1797b165a904"
+            ],
+            "trigger_failed": [],
+            "skipped_scrape": [
+                "9665fac2-99cc-4856-a78a-a9a8c603caf1"
+            ],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "d179fc28-0651-47a4-9f9a-4a92ed584b4d",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "cc401736-3b3d-4da1-b66d-267ba7970a37",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "6032e345-bc4c-45d6-90d8-6a77082d1186",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "78a6864b-f69b-48ab-a813-6e84cd266130",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "3de11ca9-e422-4005-8940-45083758593e",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "9d015f9f-fb2c-41bf-b591-d7603356ad3c",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "86832644-f9cd-4ce0-b4ed-bfaf20d7d224",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "d5e13607-845f-402c-bef1-ca8374dd5c35",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "77ed0285-cbc7-43ca-8f43-d1d5d7df9c49",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "0eebf341-9683-4ceb-a1b9-385111a2d7ca",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "535c4cca-b5db-4491-8759-f462d966e5fc",
+            "status": "processed",
+            "sources_found": 1,
+            "triggered_ok": [
+                "18a06ad1-a8a2-432e-8a5b-2dcbe898d118"
+            ],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "257a813d-28d5-4882-98ba-6893867a26c5",
+            "status": "processed",
+            "sources_found": 1,
+            "triggered_ok": [
+                "b3fcfbb5-0734-4da4-b968-e16b2ef7ca87"
+            ],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "83db9843-b8f6-45c2-9608-3260bed7a6c7",
+            "status": "processed",
+            "sources_found": 1,
+            "triggered_ok": [
+                "fc3f4253-c891-4431-a05e-7119989d62a1"
+            ],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "15fc4721-2b4e-434c-b334-166c75725c91",
+            "status": "processed",
+            "sources_found": 1,
+            "triggered_ok": [
+                "160a9349-3813-4c24-adee-f3d112f0a884"
+            ],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "68dc3426-7f2a-43bf-bb48-6fa1c6324a47",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "763c01d3-7ac1-48ba-923e-3b5fda04ae84",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "afac93b7-ff80-48af-8e0b-f5298c6c8a2d",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "bdd9192d-6258-4333-81e2-c7bfa0f47ff7",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "85d10bc0-9463-4e79-96f7-87d53dd63101",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "ff1b9f45-6188-4a10-9dff-a998b0abca6d",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "a8ebc428-3d50-4b24-89f6-5c7ba7bcb0c6",
+            "status": "processed",
+            "sources_found": 1,
+            "triggered_ok": [
+                "35566940-6584-4c01-92fd-afed56a003af"
+            ],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "68e8cd4e-9da5-410b-b96b-4788242c562a",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "3242ded3-4cf7-466d-9318-07f46b74eaf9",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "c297b654-5f3b-4509-a51a-438f603764bc",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "ee796938-40ab-4208-a8d6-960573e0b853",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "1d5fbf8a-d271-4992-9636-6275a93cc244",
+            "status": "processed",
+            "sources_found": 1,
+            "triggered_ok": [
+                "e845495a-611c-45e1-9133-e23a8c796bb4"
+            ],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "a75ca74d-2fad-4b2b-8337-342d27bd0989",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "fd5323d0-35c2-4b04-8e88-d3f0495efb9c",
+            "status": "processed",
+            "sources_found": 2,
+            "triggered_ok": [
+                "6866eb89-70ca-4b5a-a750-5ec0e5c33fb6",
+                "f626e45c-d421-47d0-a98d-0ea8b78c5542"
+            ],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "798b4481-558a-4a0b-9f3d-de8e0d86f661",
+            "status": "processed",
+            "sources_found": 1,
+            "triggered_ok": [
+                "c1215ddf-3e0e-4d43-9580-b89ebbf4402a"
+            ],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "cb9efb28-51ee-4e05-9c0e-96db7981fb6f",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "07148d63-5815-4696-a799-e71540806840",
+            "status": "processed",
+            "sources_found": 3,
+            "triggered_ok": [
+                "a9e22a49-206d-4cf8-ad1c-2e6c5e9df516",
+                "e1877d09-8f80-4320-ade9-f1f620277ded"
+            ],
+            "trigger_failed": [],
+            "skipped_scrape": [
+                "c9670be0-d6e1-4106-b927-3c32ed48886b"
+            ],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "d0c00712-000a-4fa1-8b4a-fdcc132352a6",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "67226807-3b7f-47cb-b869-5c134313dd64",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "cbc8176a-f20f-4297-84c6-c236075ca3ac",
+            "status": "processed",
+            "sources_found": 1,
+            "triggered_ok": [
+                "e392161a-2a4d-44ff-adcf-153cf68bb0f8"
+            ],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "c2e92d42-8f0c-416c-91a1-05a9815e378c",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "8bf1a9fd-7274-43db-a6b8-9965442de4cd",
+            "status": "processed",
+            "sources_found": 1,
+            "triggered_ok": [
+                "26f4ff2f-4edd-467f-8270-eb53d8a1f89f"
+            ],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "7c4add4a-4372-4c76-aef3-527381ef536e",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "a7172963-3201-463a-8040-bfd444ec69a0",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "e6323c45-da61-4ff2-b04b-cfa7429ef5e7",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "552efc78-87b3-44bf-a047-5fcb558b964e",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "f31a24f1-936d-4a77-9b7f-828ae90a9ba6",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "0c24e4e8-3d7d-4f1b-ab1f-45b347ac8070",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "399f102a-efff-4f03-a883-b78a6af355e0",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "8a8d79a0-7bf2-437f-aed6-16173e4e89f5",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "02d9c02b-0138-4181-ac72-41c9053cf5f5",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "3fc70f88-856b-452b-ba89-81e308926fef",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "702ca639-eb5f-40a2-a38e-164debb9b8b9",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "177058d7-c9e1-4b13-90fe-9a03cd9b0c8f",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "81b4c94f-4c3a-44ff-872c-77ca195ae926",
+            "status": "processed",
+            "sources_found": 1,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [
+                "db85cc3b-1617-4dd3-91a6-fdf5cd707baf"
+            ],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "46fac378-97cd-481d-8b40-a652064126ae",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "f0c90bc8-ed1a-4693-96a1-87b7dd2952d7",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "b89a7dbd-de8b-4b2d-9e79-967e6e860aef",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "68727083-37d8-4e1a-bcfe-457d62197aba",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "b21a9b89-93da-45ea-9715-c3ff0751c85b",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "264ae8fb-9908-4f08-826a-e98f3a311dcf",
+            "status": "processed",
+            "sources_found": 1,
+            "triggered_ok": [
+                "fa290e02-63cf-4962-82a7-0a6db3df254f"
+            ],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "0961a0fc-c762-4e35-b060-433a53851a19",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "2a06d63e-cb9e-4482-a62e-c3ae8c0a8ae4",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "b7b4097e-36d9-45dd-a35f-436d77f0639c",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "26db871e-08a7-4603-9dc3-ec52408f7f7b",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "2b773090-960f-4be9-be3d-758d423a82a8",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "283e029f-80f5-4c9a-9b6d-723adb137285",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "d77c3d6f-e27a-4648-bac9-1575ede5fa87",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "5ffc6fcd-879e-4c09-81e6-fb54f49e1956",
+            "status": "processed",
+            "sources_found": 1,
+            "triggered_ok": [
+                "0f76890e-3adc-4939-a62a-e7bfdaad9acc"
+            ],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "21c34c0b-b963-48a1-a359-d6f5f5de5de7",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "d8b3fbe5-8045-46a1-9289-1d9084fa6334",
+            "status": "processed",
+            "sources_found": 3,
+            "triggered_ok": [
+                "4dcd181a-ce85-4ba5-a171-3219482105cf"
+            ],
+            "trigger_failed": [],
+            "skipped_scrape": [
+                "645313b1-d415-4920-bd9b-362cec727011",
+                "bc7004c0-c531-40bf-983f-25822bbe9c74"
+            ],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "a8e77f86-67f2-45a8-835e-0c820c1e4b50",
+            "status": "processed",
+            "sources_found": 2,
+            "triggered_ok": [
+                "837f0612-95aa-48f5-ba46-72b426f02ed4",
+                "ba519bdf-91e4-40af-a092-149d089a6d26"
+            ],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "ac365727-d139-4e09-9631-e4bd25983c2b",
+            "status": "processed",
+            "sources_found": 12,
+            "triggered_ok": [
+                "14f4581b-3be4-4d90-95f0-353f99b95292",
+                "40b3ad60-11d4-4a82-98d1-fd22e26c8a91",
+                "600e8dae-a611-4b65-b6ec-25d758443e4f",
+                "6cfb30ca-5b28-4cd1-b9f7-d25e51d828f6",
+                "7f479e06-7688-4454-a2d1-834885aea13c",
+                "8192326f-5d23-4743-bbf9-9abf44396dba",
+                "e797e0fc-c13a-4f93-8ba2-4b36b0a6f025"
+            ],
+            "trigger_failed": [],
+            "skipped_scrape": [
+                "239e9462-518c-413f-bc67-f4ee3e070098",
+                "312d46b9-0540-4827-8945-4739adb4ced1",
+                "4571c1e1-642a-44a2-b86a-6d75a04ed884",
+                "4968fa31-e0f1-4f09-92b0-ff82e0069a22",
+                "e466f5f7-14c6-4081-aea6-4218e34f5859"
+            ],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "2b1ee122-53dd-4d4a-9a17-2b5a87452360",
+            "status": "processed",
+            "sources_found": 22,
+            "triggered_ok": [
+                "11e76e7b-ba84-4475-9f40-83d1c98c5cac",
+                "1548dd44-6e65-4bab-87a8-dd1ff2ee3685",
+                "2049f737-d5f3-456f-b05d-8bc1df8435b9",
+                "30f50885-c807-4541-8967-736d0524f3cf",
+                "358e97a2-60f7-47a7-9e45-62bfeeaa30e2",
+                "3febd1c2-023d-4dd4-b09c-bb2d51e3e70e",
+                "4665d84a-9271-4e18-8340-77c2bf9ae5e2",
+                "51776db9-a1c0-4fdb-878c-d78b9ff9b4b8",
+                "63fb8214-ee8d-44d1-a694-0cbd2d552856",
+                "6998be2b-6187-4795-bc25-c18a381470cb",
+                "6adab0d6-ac26-4187-a65b-4cf0b2cb5cd5",
+                "71b37fd1-0fcf-46e6-a500-acaf9a436c5b",
+                "7b2d5c37-5e63-4c81-89c3-d0d7bfbd36a7",
+                "8033d0ed-1bf7-4f7e-b339-ee4ed7f09802",
+                "8fb3e515-2be7-425c-936a-cf4838872734",
+                "98238c6f-84d3-45c1-9315-f11b9871d8f3",
+                "9fedd824-e775-4ab2-8e45-bc2f0e877329",
+                "a599bd3d-796c-42b2-a5ea-6f53aa39cac1",
+                "a814d551-8134-4080-af26-4946559b5fc9",
+                "f38a8088-e592-4dd0-a690-1151c88039eb",
+                "f4fe78b3-ef25-4300-ae3b-666f9767ec18"
+            ],
+            "trigger_failed": [],
+            "skipped_scrape": [
+                "73697179-4e42-4215-8039-7a5cba5279c4"
+            ],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "51994319-3f0d-4bdf-b835-0330e27d7693",
+            "status": "processed",
+            "sources_found": 11,
+            "triggered_ok": [
+                "019a638c-a7e1-4d80-9caa-8b7fc53638ab",
+                "1310138c-209c-468d-b38e-f9bcd3d7a10b",
+                "1d104ef4-1daa-4a41-afb8-65baa34485cc",
+                "2986a64e-f7ec-400b-87fd-5a37573c6a25",
+                "37f73493-d163-464b-a87e-b7d5c22a77fc",
+                "9c8fd46b-1eb8-4eb5-a4a1-e61e2f2f75c2",
+                "a79be0c3-3959-4175-897e-0ebb0815d2de",
+                "f36162e5-ba2a-4d11-b5da-e6abdc4b9142",
+                "f9d55f67-5cf2-4846-b908-ba9a9eca2e89"
+            ],
+            "trigger_failed": [],
+            "skipped_scrape": [
+                "125d4695-eedd-4da0-9074-8a5dbb8603ac",
+                "5f4e139d-21a7-4e27-958d-9b6fe0f84c1c"
+            ],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "ca0b5ab0-676d-43f2-a5c4-d01ff2ededbc",
+            "status": "processed",
+            "sources_found": 15,
+            "triggered_ok": [
+                "0b763f8c-6e3e-4097-bbbe-ce7e421be237",
+                "11072142-49a7-434f-b66f-1f15273e7aaf",
+                "20de5728-2b75-480e-a11b-8858d9c6fe0d",
+                "3137e2bd-5dbf-4d0e-baeb-9daa90248319",
+                "3583cd7a-5ff1-492c-b06e-aa384d38ed4d",
+                "392280a4-4426-420e-a668-dce0ddbb8e66",
+                "3f977006-1b98-487c-aed4-207348ba5d45",
+                "55994d8e-78fd-4335-a948-91eeff5c30a5",
+                "62a3d233-fdb1-4c46-8609-9ec3428e12fa",
+                "7302a758-b718-4d76-b60b-c71b80082c5d",
+                "7ebfdfdc-8d40-480d-a2e6-3381f6e12bdf",
+                "8497c3fc-978f-4b03-a453-68b35dbd6bb7",
+                "e1e5bb62-a232-4fbf-9784-a505eab9a370",
+                "f358f4ea-49e7-4b5c-88e6-dd68be2e8997"
+            ],
+            "trigger_failed": [],
+            "skipped_scrape": [
+                "96000e25-fbcf-4334-8237-62a4a75c7858"
+            ],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "db3c4256-089e-4f76-8db2-ca05c93c2cf6",
+            "status": "processed",
+            "sources_found": 21,
+            "triggered_ok": [
+                "267b33d2-8770-4c4d-b218-cd30a67055f1",
+                "2ade72c5-2add-486a-a5f7-aadd4096f9e0",
+                "2e1e8aeb-84cc-4e04-bc95-3c750bea739e",
+                "3bd849ab-bb9f-4897-babb-932c6fd863be",
+                "45db7151-8d59-4c31-b9ab-19f4b16e25d1",
+                "47cdc8dc-5219-4ccf-bb65-72d049b1d306",
+                "4942bcca-1bbc-4338-b98b-0cd87cc61c76",
+                "4f9ff7de-b45b-4d51-b732-c410cb6a04b1",
+                "5c493be2-541d-447b-a9ac-2eafbed03415",
+                "6d7f4361-83cc-4b9c-8f0f-0e231f896927",
+                "7f09ea13-f057-41e4-8aaf-32bbacc09443",
+                "8e55170f-880e-4a4c-ba92-eacc91714467",
+                "a2914d00-1141-497d-835c-228012fa763a",
+                "a3ebe598-7910-4c84-8366-ad7f2d548855",
+                "b52f504b-f414-4aed-8790-144290fa277f",
+                "ba3bacc8-b05e-410c-9ad6-28e78d530b18",
+                "d903f908-ff1a-401f-8441-dddb6fa45a10",
+                "f749bef9-b964-4f93-8756-13b806e85a81"
+            ],
+            "trigger_failed": [],
+            "skipped_scrape": [
+                "00023e2b-19c8-44aa-8d5e-3ce36126f6bb",
+                "359ae48e-0f1d-4e05-b702-021b63851260",
+                "65e848ca-48a1-4fd4-958a-5b4dff8957a2"
+            ],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "2dfbe3a6-c967-4fe0-91ef-977330663a88",
+            "status": "processed",
+            "sources_found": 36,
+            "triggered_ok": [
+                "008127c9-9c9a-49cf-96ce-1c92d310eb7d",
+                "00db4b1c-1807-4011-a1ca-4c3958a7d598",
+                "01dbc460-8d8b-4c85-a4be-d3aafc125c7d",
+                "0284329e-b8b8-49fa-b604-8592810fca75",
+                "0ed0d409-d28f-4ee1-9865-15aa05a6da85",
+                "2291ac47-03ec-419b-b756-cf3e840ddee3",
+                "2e59cd4f-83d2-4e19-b8c3-d18688c1b280",
+                "37a5652b-fd0b-4416-94d1-41df745c14c3",
+                "42eb45bc-6e67-4912-81b3-e7ba0209a930",
+                "43a99626-098e-4fec-8979-9c45b6e331ad",
+                "448330ac-79b8-4a61-b284-028457b3ca58",
+                "529a8372-fa77-4039-86e7-6ba1c9ec6a3f",
+                "52c0e10b-0f06-4823-bd23-7caebcc558fa",
+                "58fee01d-c3c4-4cf4-8d85-fe0d6668ffb5",
+                "5fe6b170-8578-47a6-9cfd-57287342fa15",
+                "647c8676-e87a-4e0b-84ae-2171bc1d3c24",
+                "6ffe09d4-bfd5-4229-a7d5-cbc928e0537c",
+                "7cc0755a-2943-457a-b1aa-7367a26ca3dd",
+                "80707a28-4ab1-441d-9d47-78279da2070f",
+                "82939609-923e-4e58-bcd8-24de33c34b4e",
+                "98244775-33b9-4d3c-9ce4-7cfc392c6b9a",
+                "99ce804d-71fa-470e-b9ce-25d9d1eb9b0f",
+                "9e087f2d-1094-4e9f-8dc2-07ee0ff10848",
+                "a39eea33-8967-4c71-98b5-46091977423e",
+                "b1d28578-5039-4b9e-b45a-ade51c809786",
+                "b2c02a8f-318f-4349-a6be-f1c9857954ec",
+                "c14bc53b-f0bf-4dd9-a328-13dc76e7e1d5",
+                "c49d08dc-f55e-4ccc-9b97-37da5f242614",
+                "dce2883e-08b2-4b46-bde3-ca7ec1d210ec",
+                "ed4d2a2e-b7b9-4f53-9d97-79c9ec65b61e",
+                "fd31e039-72a4-4145-885e-8fc4ca0e2de6",
+                "ff86dd0e-c5d8-47b6-8b85-e5fde7dca962"
+            ],
+            "trigger_failed": [],
+            "skipped_scrape": [
+                "1a33fd35-3295-4986-aac4-d219035fb58d",
+                "411a95f3-beb4-4db5-947c-29c42b0b6bfd",
+                "ae304d32-7627-4bd3-bde9-5fe82d71a416",
+                "daab0470-fbf3-48be-ba76-036d36e92906"
+            ],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "08879729-aef0-427a-81ec-7e0d78532961",
+            "status": "processed",
+            "sources_found": 18,
+            "triggered_ok": [
+                "055fa612-dfb7-4035-b98d-8a63e7135fb7",
+                "3dbe0922-762a-4f94-849c-a8dfee75304f",
+                "4c553cf6-385d-40a8-9a6c-4d78421af357",
+                "62df5072-9747-4b77-bb5d-159468b12879",
+                "67d5ea3d-ea52-4b22-aec1-b7c1ee75af37",
+                "776cb3b1-4bc8-4b77-b7c9-8392d6785d4f",
+                "7862ceb4-65cf-426c-8a2c-521c3206a318",
+                "8320e7e7-cbac-40f7-838e-9a5910051f16",
+                "98f4b100-0cc2-4cd0-a175-5e10a26b9308",
+                "a4808e9e-e0e9-4ccf-98c6-0ce1b3fb4a27",
+                "ac55a57f-c979-4b2a-817e-3b51885c984d",
+                "b873cb3c-9b13-4427-8158-31a330a51885",
+                "c377837f-3be2-409c-9960-59846179c02d",
+                "cc6a3f7d-f8c2-47dc-9c8c-96461165674d",
+                "dc1199cf-aa4e-41d9-9ad5-9a63daea9920",
+                "f33cbb87-7e18-4691-9425-dc01e39071ce"
+            ],
+            "trigger_failed": [],
+            "skipped_scrape": [
+                "464e7112-d309-41a7-bc16-c1a1d642a3a7",
+                "df9b1bee-c47f-4a06-927b-773f3855770e"
+            ],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        }
+    ]
+}

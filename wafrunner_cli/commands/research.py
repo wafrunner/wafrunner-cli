@@ -1,134 +1,95 @@
+import os
 import sys
+import json
 import time
 from pathlib import Path
 from typing import List, Optional, Any
-from decimal import Decimal
+from datetime import datetime, timezone
+import concurrent.futures
 
-import httpx
 import typer
+import httpx
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn
+from rich.progress import (
+    Progress,
+    SpinnerColumn,
+    BarColumn,
+    TextColumn,
+    TimeRemainingColumn,
+    TaskProgressColumn,
+)
 
-# In the actual application, these would be imported from the real core modules
-# NOTE: The placeholder classes below have been expanded to support all implemented commands
+from wafrunner_cli.core.api_client import ApiClient
 from wafrunner_cli.core.exceptions import AuthenticationError
 
-# --- Placeholder Core Components ---
-# In the actual application, these would be imported from wafrunner.core.
-# They are included here to make the example runnable and demonstrate interaction.
-
-def _convert_decimals(obj: Any) -> Any:
-    """Helper to recursively convert Decimal objects to int or float."""
-    if isinstance(obj, list):
-        return [_convert_decimals(item) for item in obj]
-    elif isinstance(obj, dict):
-        return {key: _convert_decimals(value) for key, value in obj.items()}
-    elif isinstance(obj, Decimal):
-        return int(obj) if obj % 1 == 0 else float(obj)
-    return obj
-
+# --- Config Manager (for data dir only) ---
 class ConfigManager:
-    """
-    Manages reading configuration from ~/.wafrunner/config.
-    (Placeholder Implementation)
-    """
     def __init__(self):
-        self._config = {
-            "api_key": "dummy_api_key_12345",
-            "api_base_url": "https://api.wafrunner.com/v1",
-            "data_dir": Path.home() / ".wafrunner" / "data"
-        }
-        self.get_data_dir().mkdir(parents=True, exist_ok=True)
-
-    def get_api_key(self) -> str:
-        return self._config["api_key"]
-
-    def get_api_base_url(self) -> str:
-        return self._config["api_base_url"]
+        self._data_dir = Path.home() / ".wafrunner" / "data"
+        self._data_dir.mkdir(parents=True, exist_ok=True)
 
     def get_data_dir(self) -> Path:
-        return Path(self._config["data_dir"]).expanduser()
+        return self._data_dir.expanduser()
 
-class ApiClient:
-    """
-    Handles all HTTP requests to the vulnerability API.
-    (Placeholder Implementation)
-    """
-    def __init__(self, api_key: str, base_url: str):
-        self.api_key = api_key
-        self.base_url = base_url
-        self.console = Console(style="bold magenta")
+# --- Helper Function for Collections ---
+def get_vuln_ids_from_collection(collection_name: str, config_manager: ConfigManager) -> List[str]:
+    data_dir = config_manager.get_data_dir()
+    console = Console()
+    txt_path = data_dir / collection_name
+    txt_path2 = data_dir / f"{collection_name}.txt"
+    json_path = data_dir / "collections" / f"{collection_name}.json"
 
-    def get_vulnerability_record(self, vuln_id: str) -> Optional[dict]:
-        """(For github command) Retrieves the full vulnerability record."""
-        self.console.print(f"API_CALL: GET {self.base_url}/vulnerability_records/{vuln_id}")
-        time.sleep(0.05)
-        if "notfound" in vuln_id: return None
-        if "complete" in vuln_id: return {"github_searches": [{"status": "complete"}]}
-        return {"github_searches": []}
+    if txt_path.is_file():
+        target_path = txt_path
+        try:
+            with open(target_path, "r", encoding='utf-8') as f:
+                vuln_ids = [line.strip() for line in f if line.strip()]
+        except IOError as e:
+            console.print(f"[bold red]File Error:[/bold red] Could not read file {target_path}: {e}")
+            raise typer.Exit(code=1)
+    elif txt_path2.is_file():
+        target_path = txt_path2
+        try:
+            with open(target_path, "r", encoding='utf-8') as f:
+                vuln_ids = [line.strip() for line in f if line.strip()]
+        except IOError as e:
+            console.print(f"[bold red]File Error:[/bold red] Could not read file {target_path}: {e}")
+            raise typer.Exit(code=1)
+    elif json_path.is_file():
+        target_path = json_path
+        try:
+            with open(target_path, "r", encoding='utf-8') as f:
+                data = json.load(f)
+            vuln_ids = [v.get("vuln_id") for v in data.get("vulnerabilities", []) if v.get("vuln_id")]
+            if not vuln_ids:
+                vuln_ids = [v.get("cve_id") for v in data.get("vulnerabilities", []) if v.get("cve_id")]
+        except (IOError, json.JSONDecodeError) as e:
+            console.print(f"[bold red]File Error:[/bold red] Could not read or parse JSON file {target_path}: {e}")
+            raise typer.Exit(code=1)
+    else:
+        console.print(f"[bold red]Error:[/bold red] Collection '[bold yellow]{collection_name}[/bold yellow]' not found in data directory: {data_dir}/collections")
+        raise typer.Exit(code=1)
 
-    def trigger_github_search(self, vuln_id: str) -> bool:
-        """(For github command) Triggers a GitHub search."""
-        self.console.print(f"API_CALL: POST {self.base_url}/vulnerability_records/{vuln_id}/actions/search")
-        time.sleep(0.1)
-        return False if "fail" in vuln_id else True
+    if not vuln_ids:
+        console.print(f"[bold yellow]Warning:[/bold yellow] The collection '{collection_name}' is empty.")
+        raise typer.Exit()
+    return vuln_ids
 
-    def get_data_sources(self, vuln_id: str) -> Optional[List[dict]]:
-        """(For scrape command) Retrieves data sources for a vulnerability."""
-        self.console.print(f"API_CALL: GET {self.base_url}/vulnerability_records/{vuln_id}/data_sources")
-        time.sleep(0.05)
-        if "no-sources" in vuln_id: return []
-        if "notfound" in vuln_id: return None
-        mock_data = [
-            {"linkID": {"S": "link-1"}, "scrapedStatus": {"S": "new"}},
-            {"linkID": "link-2", "scrapedStatus": "complete"},
-            {"linkID": {"S": "link-3"}, "scrapedStatus": {"S": "error"}},
-            {"linkID": {"S": "link-4-fail"}, "scrapedStatus": "pending"},
-        ]
-        return _convert_decimals(mock_data)
-
-    def trigger_scrape(self, vuln_id: str, link_id: str) -> bool:
-        """(For scrape command) Triggers a scrape for a data source."""
-        self.console.print(f"API_CALL: POST {self.base_url}/vulnerability_records/{vuln_id}/data_sources/{link_id}/actions/scrape")
-        time.sleep(0.1)
-        return False if "fail" in link_id else True
-
-# --- Typer App and Rich Console Initialization ---
 app = typer.Typer(
     name="research",
     help="Commands for initiating research and analysis tasks.",
     no_args_is_help=True
 )
 
-# --- Helper Function for Collections ---
-def get_vuln_ids_from_collection(collection_name: str, config_manager: ConfigManager) -> List[str]:
-    """Reads vulnerability IDs from a collection file."""
-    data_dir = config_manager.get_data_dir()
-    console = Console()
-    collection_path = data_dir / collection_name
-    collection_path_txt = data_dir / f"{collection_name}.txt"
-    target_path = collection_path if collection_path.is_file() else collection_path_txt
-    if not target_path.is_file():
-        console.print(f"[bold red]Error:[/bold red] Collection '[bold yellow]{collection_name}[/bold yellow]' not found in data directory: {data_dir}")
-        raise typer.Exit(code=1)
-    try:
-        with open(target_path, "r", encoding='utf-8') as f:
-            vuln_ids = [line.strip() for line in f if line.strip()]
-            if not vuln_ids:
-                console.print(f"[bold yellow]Warning:[/bold yellow] The collection '{collection_name}' is empty.")
-                raise typer.Exit()
-            return vuln_ids
-    except IOError as e:
-        console.print(f"[bold red]File Error:[/bold red] Could not read file {target_path}: {e}")
-        raise typer.Exit(code=1)
 
-# --- CLI Commands ---
+
 
 @app.command()
 def github(
     collection: Optional[str] = typer.Option(None, "--collection", "-c", help="Name of the collection file containing vulnerability IDs."),
-    vulnid: Optional[str] = typer.Option(None, "--vulnid", "-id", help="A single vulnerability ID to process."),
-    force: bool = typer.Option(False, "--force", "-f", help="Force a new search even if a completed search already exists.")
+    vulnid: Optional[str] = typer.Option(None, "--vulnid", "-v", help="A single vulnerability ID to process."),
+    force: bool = typer.Option(False, "--force", "-f", help="Force a new search even if a completed search already exists."),
+    max_workers: int = typer.Option(10, "--max-workers", help="Max number of parallel workers for large collections."),
 ):
     """Trigger GitHub searches for vulnerabilities from a collection or a single ID."""
     console = Console()
@@ -141,47 +102,93 @@ def github(
 
     try:
         config_mgr = ConfigManager()
-        api_client = ApiClient(config_mgr.get_api_key(), config_mgr.get_api_base_url())
-        
+        api_client = ApiClient()
         vuln_ids = [vulnid] if vulnid else get_vuln_ids_from_collection(collection, config_mgr)
-
         console.print(f"Found {len(vuln_ids)} vulnerability ID(s) to process.")
         if force:
             console.print("[bold yellow]Running in force mode: all vulnerabilities will be searched.[/bold yellow]")
 
-        with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), BarColumn(), TextColumn("[progress.percentage]{task.percentage:>3.0f}%"), console=console) as progress:
+        skipped = 0
+        failed = 0
+        triggered = 0
+
+        def process_vuln(current_vuln_id):
+            nonlocal skipped, failed, triggered
+            try:
+                response = api_client.get(f"/vulnerability_records/{current_vuln_id}")
+            except AuthenticationError as e:
+                raise e  # Re-raise to be caught by the main handler
+            except Exception as e:
+                console.print(f"[red]API error for {current_vuln_id}: {e}[/red]")
+                failed += 1
+                return
+
+            if response.status_code == 404:
+                console.print(f"Info: Record not found for {current_vuln_id}. Skipping.")
+                failed += 1
+                return
+
+            try:
+                record = response.json()
+            except Exception as e:
+                console.print(f"[red]Failed to parse record for {current_vuln_id}: {e}[/red]")
+                failed += 1
+                return
+
+            if not force:
+                github_searches = record.get("github_searches", [])
+                skip_search = False
+                if isinstance(github_searches, list):
+                    for entry in github_searches:
+                        if isinstance(entry, dict) and entry.get("status", "").lower() == "complete":
+                            skip_search = True
+                            break
+                if skip_search:
+                    skipped += 1
+                    return
+
+            try:
+                post_response = api_client.post(
+                    f"/vulnerability_records/{current_vuln_id}/actions/search",
+                    json={"searchType": "github"}
+                )
+            except Exception as e:
+                console.print(f"[bold red]Failed to trigger search for {current_vuln_id}: {e}[/bold red]")
+                failed += 1
+                return
+
+            if post_response.status_code not in (200, 201, 204, 409):
+                console.print(f"[bold red]Failed to trigger search for {current_vuln_id}. Status: {post_response.status_code}[/bold red]")
+                failed += 1
+            else:
+                triggered += 1
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+            console=console
+        ) as progress:
             task = progress.add_task("[green]Processing VulnIDs...", total=len(vuln_ids))
 
-            for current_vuln_id in vuln_ids:
-                progress.update(task, description=f"[green]Processing {current_vuln_id}[/green]")
-                
-                record = api_client.get_vulnerability_record(current_vuln_id)
-                if record is None:
-                    console.print(f"Info: Record not found for {current_vuln_id}. Skipping.")
+            if len(vuln_ids) <= 5:
+                for idx, current_vuln_id in enumerate(vuln_ids, 1):
+                    process_vuln(current_vuln_id)
+                    if idx % 50 == 0 or len(vuln_ids) < 50:
+                        console.print(f"Triggered GitHub search for {current_vuln_id}... ({idx}/{len(vuln_ids)})")
                     progress.advance(task)
-                    continue
-
-                if not force:
-                    github_searches = record.get("github_searches", [])
-                    skip_search = False
-                    if isinstance(github_searches, list):
-                        for entry in github_searches:
-                            if isinstance(entry, dict) and entry.get("status", "").lower() == "complete":
-                                skip_search = True
-                                break
-                    if skip_search:
-                        console.print(f"Skipping {current_vuln_id}: Found existing completed search.")
+            else:
+                with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    futures = {executor.submit(process_vuln, vid): vid for vid in vuln_ids}
+                    for idx, future in enumerate(concurrent.futures.as_completed(futures), 1):
+                        # Optionally, print progress every 50
+                        if idx % 50 == 0 or len(vuln_ids) < 50:
+                            console.print(f"Processed {idx} of {len(vuln_ids)} vulnerability IDs...")
                         progress.advance(task)
-                        continue
 
-                console.print(f"Triggering GitHub search for {current_vuln_id}...")
-                success = api_client.trigger_github_search(current_vuln_id)
-                if not success:
-                    console.print(f"[bold red]Failed to trigger search for {current_vuln_id}.[/bold red]")
-                
-                progress.advance(task)
-        
-        console.print("\n[bold green]✔ Finished processing all vulnerability IDs.[/bold green]")
+        console.print(f"\n[bold green]✔ Finished processing all vulnerability IDs.[/bold green]")
+        console.print(f"Triggered: [green]{triggered}[/green], Skipped: [yellow]{skipped}[/yellow], Failed: [red]{failed}[/red]")
 
     except AuthenticationError as e:
         console.print(f"\n[bold red]API Error:[/bold red] {e}")
@@ -192,6 +199,7 @@ def github(
     except Exception as e:
         console.print(f"\n[bold red]An unexpected error occurred:[/bold red] {e}")
         raise typer.Exit(code=1)
+
 
 @app.command()
 def scrape(
@@ -209,25 +217,46 @@ def scrape(
 
     try:
         config_mgr = ConfigManager()
-        api_client = ApiClient(config_mgr.get_api_key(), config_mgr.get_api_base_url())
-        
+        api_client = ApiClient()
+
         vuln_ids = [vulnid] if vulnid else get_vuln_ids_from_collection(collection, config_mgr)
 
         console.print(f"Found {len(vuln_ids)} vulnerability ID(s) to process for scraping.")
 
-        with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), BarColumn(), TextColumn("[progress.percentage]{task.percentage:>3.0f}%"), console=console) as progress:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+            console=console
+        ) as progress:
             task = progress.add_task("[green]Processing VulnIDs...", total=len(vuln_ids))
 
             for current_vuln_id in vuln_ids:
                 progress.update(task, description=f"[green]Processing {current_vuln_id}[/green]")
-                
-                data_sources = api_client.get_data_sources(current_vuln_id)
 
-                if data_sources is None:
+                # --- Real API call to get data sources ---
+                try:
+                    response = api_client.get(f"/vulnerability_records/{current_vuln_id}/data_sources")
+                except AuthenticationError as e:
+                    raise e  # Re-raise to be caught by the main handler
+                except Exception as e:
+                    console.print(f"[red]API error for {current_vuln_id}: {e}[/red]")
+                    progress.advance(task)
+                    continue
+
+                if response.status_code == 404:
                     console.print(f"Info: No data sources found for {current_vuln_id} (or record not found).")
                     progress.advance(task)
                     continue
-                
+
+                try:
+                    data_sources = response.json()
+                except Exception as e:
+                    console.print(f"[red]Failed to parse data sources for {current_vuln_id}: {e}[/red]")
+                    progress.advance(task)
+                    continue
+
                 triggered_count = 0
                 skipped_count = 0
                 for record in data_sources:
@@ -236,7 +265,7 @@ def scrape(
                         continue
 
                     link_id = record.get("linkID")
-                    scraped_status = record.get("scrapedStatus", "").lower()
+                    scraped_status = str(record.get("scrapedStatus", "")).lower()
 
                     if not link_id:
                         console.print(f"[yellow]Warning:[/yellow] Skipping record for {current_vuln_id} due to missing linkID.")
@@ -246,17 +275,25 @@ def scrape(
                     if scraped_status in ("complete", "error"):
                         skipped_count += 1
                         continue
-                    
-                    console.print(f"Triggering scrape for {current_vuln_id}, linkID: {link_id}")
-                    success = api_client.trigger_scrape(current_vuln_id, link_id)
-                    if success:
-                        triggered_count += 1
+
+                    # --- Real API call to trigger scrape ---
+                    try:
+                        post_response = api_client.post(
+                            f"/vulnerability_records/{current_vuln_id}/data_sources/{link_id}/actions/scrape",
+                            json={}
+                            )
+                    except Exception as e:
+                        console.print(f"[red]Failed to trigger scrape for linkID: {link_id} ({e})[/red]")
+                        continue
+
+                    if post_response.status_code not in (200, 201, 409):
+                        console.print(f"[red]Failed to trigger scrape for linkID: {link_id} (Status: {post_response.status_code})[/red]")
                     else:
-                        console.print(f"[red]Failed[/red] to trigger scrape for linkID: {link_id}")
+                        triggered_count += 1
 
                 console.print(f"Summary for {current_vuln_id}: Triggered [bold green]{triggered_count}[/bold green] scrapes, skipped [bold yellow]{skipped_count}[/bold yellow] data sources.")
                 progress.advance(task)
-        
+
         console.print("\n[bold green]✔ Finished processing all vulnerability IDs for scraping.[/bold green]")
 
     except AuthenticationError as e:
@@ -270,15 +307,368 @@ def scrape(
         raise typer.Exit(code=1)
 
 @app.command()
-def classify(vulnid: Optional[str] = typer.Option(None, "--vulnid")):
-    """Trigger classification for a vulnerability."""
-    print(f"Placeholder for 'research classify' with vulnid: {vulnid}")
+def classify(
+    collection: Optional[str] = typer.Option(None, "--collection", "-c", help="Name of the collection file containing vulnerability IDs."),
+    vulnid: Optional[str] = typer.Option(None, "--vulnid", "-v", help="A single vulnerability ID to process."),
+    update: bool = typer.Option(False, "--update", "-u", help="Trigger classifier even if status is 'complete' or 'error'."),
+    retry: bool = typer.Option(False, "--retry", "-r", help="Trigger classifier ONLY if status is 'error'."),
+    max_workers: int = typer.Option(16, "--max-workers", "-t", help="Number of worker threads."),
+    verbose: bool = typer.Option(False, "--verbose", "-V", help="Show progress bar and verbose logs."),
+    log_dir: Optional[Path] = typer.Option(None, "--log-dir", help="Directory to save the detailed JSON log file (default: ./run_logs)"),
+):
+    """
+    Trigger classifier for vulnerabilities from a collection or a single ID, using multithreading.
+
+    You must provide either --collection/-c or --vulnid/-v.
+    """
+    console = Console()
+    if not collection and not vulnid:
+        console.print("[bold red]Error:[/bold red] Please provide either a --collection or a --vulnid.")
+        raise typer.Exit(code=1)
+    if collection and vulnid:
+        console.print("[bold red]Error:[/bold red] Options --collection and --vulnid are mutually exclusive.")
+        raise typer.Exit(code=1)
+    if update and retry:
+        console.print("[bold red]Error:[/bold red] --update and --retry are mutually exclusive.")
+        raise typer.Exit(code=1)
+
+    try:
+        config_mgr = ConfigManager()
+        api_client = ApiClient()
+        vuln_ids = [vulnid] if vulnid else get_vuln_ids_from_collection(collection, config_mgr)
+        total_vulns = len(vuln_ids)
+        mode_str = "Update" if update else "Retry" if retry else "Standard"
+        if not log_dir:
+            log_dir = Path("./run_logs")
+        log_dir.mkdir(parents=True, exist_ok=True)
+
+        console.print(f"[*] Found {total_vulns} vulnerability IDs to process.")
+        console.print(f"[*] Mode: {mode_str}")
+        console.print(f"[*] Using {max_workers} worker threads.")
+        console.print(f"[*] Detailed log file will be saved in: {log_dir}")
+
+        # --- Worker function ---
+        def process_vulnerability(vulnID):
+            results = {
+                "vulnID": vulnID,
+                "status": "processed",
+                "sources_found": 0,
+                "triggered_ok": [],
+                "trigger_failed": [],
+                "skipped_scrape": [],
+                "skipped_classify": [],
+                "skipped_linkid": 0,
+                "error_fetching_sources": False,
+            }
+
+            # --- API GET data sources ---
+            try:
+                # Use the same headers as the example script (handled by ApiClient)
+                response = api_client.get(f"/vulnerability_records/{vulnID}/data_sources")
+                if response.status_code == 204 or response.status_code == 404 or not response.content:
+                    results["status"] = "no_sources_found"
+                    return results
+                data_sources = response.json()
+            except AuthenticationError as e:
+                raise e  # Re-raise to be caught by the main handler
+            except Exception as e:
+                results["status"] = "error_fetching_sources"
+                results["error_fetching_sources"] = True
+                results["error_message"] = str(e)
+                return results
+
+            if not data_sources:
+                results["status"] = "no_sources_found"
+                return results
+
+            results["sources_found"] = len(data_sources)
+
+            for record in data_sources:
+                linkID_value = record.get("linkID")
+                if not linkID_value:
+                    results["skipped_linkid"] += 1
+                    continue
+
+                scraped_status = str(record.get("scrapedStatus", "")).lower()
+                if scraped_status != "complete":
+                    results["skipped_scrape"].append(linkID_value)
+                    continue
+
+                classifier_status = str(record.get("classifierStatus", "")).lower()
+                should_skip = False
+                if retry:
+                    if classifier_status != "error":
+                        should_skip = True
+                elif not update:
+                    if classifier_status in ["complete", "error"]:
+                        should_skip = True
+
+                if should_skip:
+                    results["skipped_classify"].append(linkID_value)
+                    continue
+
+                # --- API POST trigger classify ---
+                try:
+                    post_response = api_client.post(
+                        f"/vulnerability_records/{vulnID}/data_sources/{linkID_value}/actions/classify",
+                        json={},  # Always send an empty JSON body
+                    )
+                    if 200 <= post_response.status_code < 300:
+                        results["triggered_ok"].append(linkID_value)
+                    else:
+                        results["trigger_failed"].append(linkID_value)
+                        if verbose:
+                            console.print(f"[red]Failed to trigger classify for {vulnID}/{linkID_value}: Status {post_response.status_code} - {post_response.text}[/red]")
+                except Exception as e:
+                    results["trigger_failed"].append(linkID_value)
+                    if verbose:
+                        console.print(f"[red]Failed to trigger classify for {vulnID}/{linkID_value}: {e}[/red]")
+            return results
+
+        # --- Multithreaded execution ---
+        all_results = []
+        total_triggered_ok = 0
+        total_trigger_failed = 0
+        total_skipped_scrape = 0
+        total_skipped_classify = 0
+        total_skipped_linkid = 0
+        total_error_fetching = 0
+        processed_vuln_count = 0
+
+        start_time = time.time()
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            TextColumn("•"),
+            TextColumn("•"),
+            TimeRemainingColumn(),
+            console=console,
+            transient=False
+        ) as progress:
+            task = progress.add_task(
+                f"[green]Processing {total_vulns} VulnIDs...", total=total_vulns
+            )
+            with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+                future_to_vulnid = {
+                    executor.submit(process_vulnerability, vuln_id): vuln_id
+                    for vuln_id in vuln_ids
+                }
+                for future in concurrent.futures.as_completed(future_to_vulnid):
+                    vuln_id = future_to_vulnid[future]
+                    try:
+                        result = future.result()
+                        all_results.append(result)
+                        processed_vuln_count += 1
+                        total_triggered_ok += len(result.get("triggered_ok", []))
+                        total_trigger_failed += len(result.get("trigger_failed", []))
+                        total_skipped_scrape += len(result.get("skipped_scrape", []))
+                        total_skipped_classify += len(result.get("skipped_classify", []))
+                        total_skipped_linkid += result.get("skipped_linkid", 0)
+                        total_error_fetching += 1 if result.get("error_fetching_sources") else 0
+                    except Exception as exc:
+                        if isinstance(exc, AuthenticationError):
+                            raise
+                        all_results.append({"vulnID": vuln_id, "status": "thread_exception", "error": str(exc)})
+                        total_error_fetching += 1
+                    progress.advance(task)
+
+        end_time = time.time()
+        console.print("\n--- Processing Summary ---")
+        console.print(f"Mode: {mode_str}")
+        console.print(f"Processed {processed_vuln_count}/{total_vulns} vulnIDs.")
+        console.print(f"Classifier Triggers OK:      {total_triggered_ok}")
+        console.print(f"Classifier Triggers Failed:  {total_trigger_failed}")
+        console.print(f"Skipped (scrape incomplete): {total_skipped_scrape}")
+        console.print(f"Skipped (classifier status): {total_skipped_classify}")
+        console.print(f"Skipped (missing linkID):    {total_skipped_linkid}")
+        console.print(f"Errors Fetching Sources:     {total_error_fetching}")
+        console.print(f"Total processing time: {end_time - start_time:.2f} seconds")
+
+        # --- Write Detailed Log File ---
+        log_filename = f"classifier_trigger_log_{mode_str}_{time.strftime('%Y%m%d-%H%M%S')}.json"
+        log_filepath = log_dir / log_filename
+        log_data = {
+            "run_timestamp": datetime.now(timezone.utc).isoformat(),
+            "mode": mode_str,
+            "threads": max_workers,
+            "input_collection": collection,
+            "input_vulnid": vulnid,
+            "summary": {
+                "processed_vulnIDs": processed_vuln_count,
+                "total_vulnIDs_in_collection": total_vulns,
+                "total_triggered_ok": total_triggered_ok,
+                "total_trigger_failed": total_trigger_failed,
+                "total_skipped_scrape": total_skipped_scrape,
+                "total_skipped_classify": total_skipped_classify,
+                "total_skipped_linkid": total_skipped_linkid,
+                "total_error_fetching_sources": total_error_fetching,
+                "processing_time_seconds": round(end_time - start_time, 2)
+            },
+            "details_per_vulnID": all_results
+        }
+        try:
+            with log_filepath.open('w', encoding='utf-8') as f_log:
+                json.dump(log_data, f_log, indent=4)
+            console.print(f"[*] Detailed results saved to: {log_filepath}")
+        except Exception as e:
+            console.print(f"\n[red]Error writing detailed log file to {log_dir}: {e}[/red]")
+
+        if total_trigger_failed > 0 or total_error_fetching > 0:
+            console.print("\n[bold yellow]Completed with errors. Check logs above and the detailed log file.[/bold yellow]")
+
+    except AuthenticationError as e:
+        console.print(f"\n[bold red]API Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
 
 @app.command("init-graph")
-def init_graph(vulnid: Optional[str] = typer.Option(None, "--vulnid")):
-    """Initialize an exploit graph for a vulnerability."""
-    print(f"Placeholder for 'research init-graph' with vulnid: {vulnid}")
+def init_graph(
+    collection: Optional[str] = typer.Option(None, "--collection", "-c", help="Name of the collection file containing vulnerability IDs."),
+    vulnid: Optional[str] = typer.Option(None, "--vulnid", "-v", help="A single vulnerability ID to process."),
+    max_workers: int = typer.Option(16, "--max-workers", "-t", help="Number of worker threads."),
+    verbose: bool = typer.Option(False, "--verbose", "-V", help="Show progress bar and verbose logs."),
+    log_dir: Optional[Path] = typer.Option(None, "--log-dir", help="Directory to save the detailed JSON log file (default: ./run_logs)"),
+):
+    """
+    Trigger exploit graph initialization for vulnerabilities from a collection or a single ID, using multithreading.
+
+    You must provide either --collection/-c or --vulnid/-v.
+    """
+    console = Console()
+    if not collection and not vulnid:
+        console.print("[bold red]Error:[/bold red] Please provide either a --collection or a --vulnid.")
+        raise typer.Exit(code=1)
+    if collection and vulnid:
+        console.print("[bold red]Error:[/bold red] Options --collection and --vulnid are mutually exclusive.")
+        raise typer.Exit(code=1)
+
+    try:
+        config_mgr = ConfigManager()
+        api_client = ApiClient()
+        vuln_ids = [vulnid] if vulnid else get_vuln_ids_from_collection(collection, config_mgr)
+        total_vulns = len(vuln_ids)
+        if not log_dir:
+            log_dir = Path("./run_logs")
+        log_dir.mkdir(parents=True, exist_ok=True)
+
+        console.print(f"[*] Found {total_vulns} vulnerability IDs to process.")
+        console.print(f"[*] Using {max_workers} worker threads.")
+        console.print(f"[*] Detailed log file will be saved in: {log_dir}")
+
+        def process_vuln_for_graph(vulnID):
+            result = {
+                "vulnID": vulnID,
+                "status": "processed",
+                "error": None,
+                "status_code": None,
+            }
+            try:
+                # POST to /vulnerability_records/{vulnID}/actions/initialise-exploit-graph
+                response = api_client.post(
+                    f"/vulnerability_records/{vulnID}/actions/initialise-exploit-graph"
+                )
+                result["status_code"] = response.status_code
+                if 200 <= response.status_code < 300:
+                    result["status"] = "success"
+                else:
+                    result["status"] = "failed"
+                    result["error"] = f"HTTP {response.status_code}: {response.text}"
+                    if verbose:
+                        console.print(f"[red]Failed to trigger exploit graph for {vulnID}: {result['error']}[/red]")
+            except Exception as e:
+                if isinstance(e, AuthenticationError):
+                    raise
+                result["status"] = "failed"
+                result["error"] = str(e)
+                if verbose:
+                    console.print(f"[red]Exception for {vulnID}: {e}[/red]")
+            return result
+
+        all_results = []
+        total_success = 0
+        total_failed = 0
+        processed_vuln_count = 0
+
+        start_time = time.time()
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            TextColumn("•"),
+            TextColumn("•"),
+            TimeRemainingColumn(),
+            console=console,
+            transient=False
+        ) as progress:
+            task = progress.add_task(
+                f"[green]Processing {total_vulns} VulnIDs...", total=total_vulns
+            )
+            with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+                future_to_vulnid = {
+                    executor.submit(process_vuln_for_graph, vuln_id): vuln_id
+                    for vuln_id in vuln_ids
+                }
+                for future in concurrent.futures.as_completed(future_to_vulnid):
+                    vuln_id = future_to_vulnid[future]
+                    try:
+                        result = future.result()
+                        all_results.append(result)
+                        processed_vuln_count += 1
+                        if result.get("status") == "success":
+                            total_success += 1
+                        else:
+                            total_failed += 1
+                    except Exception as exc:
+                        if isinstance(exc, AuthenticationError):
+                            raise
+                        all_results.append({"vulnID": vuln_id, "status": "thread_exception", "error": str(exc)})
+                        total_failed += 1
+                    progress.advance(task)
+
+        end_time = time.time()
+        duration = end_time - start_time
+        rate = processed_vuln_count / duration if duration > 0 else 0
+
+        console.print("\n--- Processing Summary ---")
+        console.print(f"Processed {processed_vuln_count}/{total_vulns} vulnIDs.")
+        console.print(f"Successful Triggers: {total_success}")
+        console.print(f"Failed Triggers:     {total_failed}")
+        console.print(f"Total processing time: {duration:.2f} seconds ({rate:.2f} vulnIDs/sec)")
+
+        # --- Write Detailed Log File ---
+        log_filename = f"exploit_graph_trigger_log_{time.strftime('%Y%m%d-%H%M%S')}.json"
+        log_filepath = log_dir / log_filename
+        log_data = {
+            "run_timestamp": datetime.now(timezone.utc).isoformat(),
+            "threads": max_workers,
+            "input_collection": collection,
+            "input_vulnid": vulnid,
+            "summary": {
+                "processed_vulnIDs": processed_vuln_count,
+                "total_vulnIDs_in_collection": total_vulns,
+                "total_success": total_success,
+                "total_failed": total_failed,
+                "processing_time_seconds": round(duration, 2),
+                "processing_rate_vulnIDs_per_sec": round(rate, 2)
+            },
+            "details_per_vulnID": all_results
+        }
+        try:
+            with log_filepath.open('w', encoding='utf-8') as f_log:
+                json.dump(log_data, f_log, indent=4)
+            console.print(f"[*] Detailed results saved to: {log_filepath}")
+        except Exception as e:
+            console.print(f"\n[red]Error writing detailed log file to {log_dir}: {e}[/red]")
+
+        if total_failed > 0:
+            console.print("\n[bold yellow]Completed with errors. Check logs above and the detailed log file.[/bold yellow]")
+
+    except AuthenticationError as e:
+        console.print(f"\n[bold red]API Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
 
 if __name__ == "__main__":
-    # This allows the file to be run directly for testing.
     app()
