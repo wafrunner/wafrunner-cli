@@ -1,0 +1,31 @@
+{
+    "run_timestamp": "2025-06-29T01:39:26.201514+00:00",
+    "mode": "Standard",
+    "threads": 16,
+    "input_collection": null,
+    "input_vulnid": "9d015f9f-fb2c-41bf-b591-d7603356ad3c",
+    "summary": {
+        "processed_vulnIDs": 1,
+        "total_vulnIDs_in_collection": 1,
+        "total_triggered_ok": 0,
+        "total_trigger_failed": 0,
+        "total_skipped_scrape": 0,
+        "total_skipped_classify": 0,
+        "total_skipped_linkid": 0,
+        "total_error_fetching_sources": 0,
+        "processing_time_seconds": 0.62
+    },
+    "details_per_vulnID": [
+        {
+            "vulnID": "9d015f9f-fb2c-41bf-b591-d7603356ad3c",
+            "status": "no_sources_found",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        }
+    ]
+}

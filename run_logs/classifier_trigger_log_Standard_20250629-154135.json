@@ -1,0 +1,32 @@
+{
+    "run_timestamp": "2025-06-29T03:41:35.523312+00:00",
+    "mode": "Standard",
+    "threads": 16,
+    "input_collection": null,
+    "input_vulnid": "VULN-123",
+    "summary": {
+        "processed_vulnIDs": 1,
+        "total_vulnIDs_in_collection": 1,
+        "total_triggered_ok": 0,
+        "total_trigger_failed": 0,
+        "total_skipped_scrape": 0,
+        "total_skipped_classify": 0,
+        "total_skipped_linkid": 0,
+        "total_error_fetching_sources": 1,
+        "processing_time_seconds": 0.0
+    },
+    "details_per_vulnID": [
+        {
+            "vulnID": "VULN-123",
+            "status": "error_fetching_sources",
+            "sources_found": 0,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": true,
+            "error_message": "Invalid API Key"
+        }
+    ]
+}
