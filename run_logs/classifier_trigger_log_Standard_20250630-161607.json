@@ -1,0 +1,67 @@
+{
+    "run_timestamp": "2025-06-30T04:16:07.868234+00:00",
+    "mode": "Standard",
+    "threads": 16,
+    "input_collection": "SAP-CVE-2025-31324",
+    "input_vulnid": null,
+    "summary": {
+        "processed_vulnIDs": 2,
+        "total_vulnIDs_in_collection": 2,
+        "total_triggered_ok": 0,
+        "total_trigger_failed": 0,
+        "total_skipped_scrape": 2,
+        "total_skipped_classify": 20,
+        "total_skipped_linkid": 0,
+        "total_error_fetching_sources": 0,
+        "processing_time_seconds": 1.13
+    },
+    "details_per_vulnID": [
+        {
+            "vulnID": "86124bc2-3315-411b-bcaf-b79748b8b563",
+            "status": "processed",
+            "sources_found": 19,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [
+                "7727682f-9dbd-4a68-b444-9fa1f229ba29",
+                "9d151995-c91f-4786-a9a5-7e1d2fac2776"
+            ],
+            "skipped_classify": [
+                "0f6507d3-8744-4d7f-8dc2-4facedad39d2",
+                "150b7e8c-2228-4863-8a52-3da85052b286",
+                "1afd0724-6119-4401-b3fb-f6020939a435",
+                "1ef413e3-1799-4cd5-9b7b-24b17d59c81c",
+                "2dfce06e-db44-44ad-9fa5-df1187d12ebe",
+                "4c1484fa-dd88-403b-a221-499c7a8c4b08",
+                "5234ff69-9747-48ba-a26b-9f24152c1f13",
+                "5ffb9bd7-5d60-435b-9af4-f8f38c0d0b87",
+                "63ea7d11-054d-44bd-8a03-b865d9bfe512",
+                "695434af-40fc-480f-9360-bf84d85770cd",
+                "90133aa6-ecaa-4321-87ac-237bc187b0e8",
+                "9c7a8e70-7259-4203-a83a-b5eef824a62e",
+                "b4630e46-6ce7-4951-a8af-04c3f0b8a6ca",
+                "bc4af7bb-2748-412d-b693-c69cca2522a5",
+                "d36422ad-fcc8-4092-afd2-14e6219de4c6",
+                "dab44cec-4e67-4e12-8443-7d6e1e99f919",
+                "e489eb18-6ae3-44cd-94aa-96decc96ec26"
+            ],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        },
+        {
+            "vulnID": "2b2de196-2b4a-4983-b9f2-ca1c8195fb69",
+            "status": "processed",
+            "sources_found": 3,
+            "triggered_ok": [],
+            "trigger_failed": [],
+            "skipped_scrape": [],
+            "skipped_classify": [
+                "736f80af-b9e0-4d7e-a151-f18d114eb081",
+                "af4f597e-5378-48b5-99e0-1d63c06a2bfe",
+                "ee59df1a-c5a8-4937-9f2f-0c07b3cbb836"
+            ],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        }
+    ]
+}
