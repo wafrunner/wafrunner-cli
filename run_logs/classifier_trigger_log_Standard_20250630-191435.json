@@ -1,0 +1,56 @@
+{
+    "run_timestamp": "2025-06-30T07:14:35.202158+00:00",
+    "mode": "Standard",
+    "threads": 16,
+    "input_collection": "SAP-CVE-2024-21733",
+    "input_vulnid": null,
+    "summary": {
+        "processed_vulnIDs": 1,
+        "total_vulnIDs_in_collection": 1,
+        "total_triggered_ok": 19,
+        "total_trigger_failed": 0,
+        "total_skipped_scrape": 4,
+        "total_skipped_classify": 0,
+        "total_skipped_linkid": 0,
+        "total_error_fetching_sources": 0,
+        "processing_time_seconds": 16.36
+    },
+    "details_per_vulnID": [
+        {
+            "vulnID": "dc216bc1-8ce2-4624-b6ed-d931524473dd",
+            "status": "processed",
+            "sources_found": 23,
+            "triggered_ok": [
+                "114b6340-1268-476f-a519-f353a4dc4ad9",
+                "1a9ebc62-330f-444a-80f2-081a6a22af60",
+                "1d2d026a-82ab-48fc-8af0-f3c7a3325a02",
+                "2ab4cf81-b582-480f-bed3-e6cc945a9b68",
+                "2c1f7675-35f2-485b-a30c-2fe959546d93",
+                "32e7f084-6347-4200-b0e0-bda6c1597e46",
+                "3d1711ed-465f-4b04-9079-9e6ea7c7008f",
+                "46abaed9-e4d8-4884-be8f-d91ec7ae7da4",
+                "4903288e-bec8-4be2-8662-00ff4cbf4fb3",
+                "4bb6e213-3044-4d5b-b77f-d4c6f038c936",
+                "7e6021f8-cf8a-44c8-9b36-3c68274c7daa",
+                "96e8007a-30b1-4a98-9085-42ac225b73f2",
+                "9f0e6bc6-51d7-44d1-bb75-bdffcea786b4",
+                "bc7ec469-96c8-4e4a-ac2a-19c9d4e2e92f",
+                "c8dcf7f0-f63f-456c-b4ec-2889e417a0a8",
+                "caa555ef-ffc7-4ba4-80df-66edea87120d",
+                "cd79155a-dd1f-42fe-ba20-b388ea55e0b2",
+                "d243dd60-08fc-4b87-a1be-a20f4dbc5bdf",
+                "f0c65d8e-2e26-4e40-9cca-8c4a39bd195d"
+            ],
+            "trigger_failed": [],
+            "skipped_scrape": [
+                "5621279d-707a-4cc0-bced-ba8f5159a34f",
+                "99805fdf-76bb-4c13-b325-a40fb0d2478f",
+                "e3476770-51c8-4a8c-9475-081acdc22282",
+                "ed67309a-6b3e-4eef-966b-ac93bb11784d"
+            ],
+            "skipped_classify": [],
+            "skipped_linkid": 0,
+            "error_fetching_sources": false
+        }
+    ]
+}
