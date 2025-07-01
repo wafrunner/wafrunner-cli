@@ -66,6 +66,7 @@ Thumbs.db               # Windows
 # Logs and databases
 *.log
 *.sqlite3
+run_logs/
 
 # Jupyter Notebooks
 .ipynb_checkpoints/
