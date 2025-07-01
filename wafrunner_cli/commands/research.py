@@ -18,6 +18,7 @@ from rich.progress import (
     TimeRemainingColumn,
     TaskProgressColumn,
 )
+from rich.table import Table
 
 from wafrunner_cli.core.api_client import ApiClient
 from wafrunner_cli.core.exceptions import AuthenticationError
@@ -32,48 +33,56 @@ class ConfigManager:
         return self._data_dir.expanduser()
 
 # --- Helper Function for Collections ---
-def get_vuln_ids_from_collection(collection_name: str, config_manager: ConfigManager) -> List[str]:
+def get_vuln_identifiers_from_collection(collection_name: str, config_manager: ConfigManager) -> List[dict]:
+    """
+    Parses a collection file (.json or .txt) and returns a list of vulnerability identifiers.
+    For JSON, expects a list of objects with 'cve_id' and 'vuln_id'.
+    For TXT, assumes each line is a vuln_id.
+    Returns: A list of dictionaries, e.g., [{'cve_id': 'CVE-xxx', 'vuln_id': 'guid-xxx'}, ...]
+    """
     data_dir = config_manager.get_data_dir()
     console = Console()
     txt_path = data_dir / collection_name
     txt_path2 = data_dir / f"{collection_name}.txt"
     json_path = data_dir / "collections" / f"{collection_name}.json"
+    
+    identifiers = []
 
-    if txt_path.is_file():
-        target_path = txt_path
-        try:
-            with open(target_path, "r", encoding='utf-8') as f:
-                vuln_ids = [line.strip() for line in f if line.strip()]
-        except IOError as e:
-            console.print(f"[bold red]File Error:[/bold red] Could not read file {target_path}: {e}")
-            raise typer.Exit(code=1)
-    elif txt_path2.is_file():
-        target_path = txt_path2
-        try:
-            with open(target_path, "r", encoding='utf-8') as f:
-                vuln_ids = [line.strip() for line in f if line.strip()]
-        except IOError as e:
-            console.print(f"[bold red]File Error:[/bold red] Could not read file {target_path}: {e}")
-            raise typer.Exit(code=1)
-    elif json_path.is_file():
+    if json_path.is_file():
         target_path = json_path
         try:
             with open(target_path, "r", encoding='utf-8') as f:
                 data = json.load(f)
-            vuln_ids = [v.get("vuln_id") for v in data.get("vulnerabilities", []) if v.get("vuln_id")]
-            if not vuln_ids:
-                vuln_ids = [v.get("cve_id") for v in data.get("vulnerabilities", []) if v.get("cve_id")]
+            vulnerabilities = data.get("vulnerabilities", [])
+            for v in vulnerabilities:
+                if v.get("vuln_id"):
+                    identifiers.append({
+                        "cve_id": v.get("cve_id"),
+                        "vuln_id": v.get("vuln_id")
+                    })
         except (IOError, json.JSONDecodeError) as e:
             console.print(f"[bold red]File Error:[/bold red] Could not read or parse JSON file {target_path}: {e}")
             raise typer.Exit(code=1)
+    elif txt_path.is_file() or txt_path2.is_file():
+        target_path = txt_path if txt_path.is_file() else txt_path2
+        try:
+            with open(target_path, "r", encoding='utf-8') as f:
+                for line in f:
+                    vuln_id = line.strip()
+                    if vuln_id:
+                        identifiers.append({"cve_id": None, "vuln_id": vuln_id})
+        except IOError as e:
+            console.print(f"[bold red]File Error:[/bold red] Could not read file {target_path}: {e}")
+            raise typer.Exit(code=1)
     else:
-        console.print(f"[bold red]Error:[/bold red] Collection '[bold yellow]{collection_name}[/bold yellow]' not found in data directory: {data_dir}/collections")
+        console.print(f"[bold red]Error:[/bold red] Collection '[bold yellow]{collection_name}[/bold yellow]' not found.")
         raise typer.Exit(code=1)
 
-    if not vuln_ids:
-        console.print(f"[bold yellow]Warning:[/bold yellow] The collection '{collection_name}' is empty.")
+    if not identifiers:
+        console.print(f"[bold yellow]Warning:[/bold yellow] The collection '{collection_name}' is empty or invalid.")
         raise typer.Exit()
-    return vuln_ids
+        
+    return identifiers
 
 app = typer.Typer(
     name="research",
@@ -103,7 +112,13 @@ def github(
     try:
         config_mgr = ConfigManager()
         api_client = ApiClient()
-        vuln_ids = [vulnid] if vulnid else get_vuln_ids_from_collection(collection, config_mgr)
+        
+        if vulnid:
+            vuln_ids = [vulnid]
+        else:
+            identifiers = get_vuln_identifiers_from_collection(collection, config_mgr)
+            vuln_ids = [item['vuln_id'] for item in identifiers]
+
         console.print(f"Found {len(vuln_ids)} vulnerability ID(s) to process.")
         if force:
             console.print("[bold yellow]Running in force mode: all vulnerabilities will be searched.[/bold yellow]")
@@ -219,7 +234,11 @@ def scrape(
         config_mgr = ConfigManager()
         api_client = ApiClient()
 
-        vuln_ids = [vulnid] if vulnid else get_vuln_ids_from_collection(collection, config_mgr)
+        if vulnid:
+            vuln_ids = [vulnid]
+        else:
+            identifiers = get_vuln_identifiers_from_collection(collection, config_mgr)
+            vuln_ids = [item['vuln_id'] for item in identifiers]
 
         console.print(f"Found {len(vuln_ids)} vulnerability ID(s) to process for scraping.")
 
@@ -335,7 +354,13 @@ def classify(
     try:
         config_mgr = ConfigManager()
         api_client = ApiClient()
-        vuln_ids = [vulnid] if vulnid else get_vuln_ids_from_collection(collection, config_mgr)
+        
+        if vulnid:
+            vuln_ids = [vulnid]
+        else:
+            identifiers = get_vuln_identifiers_from_collection(collection, config_mgr)
+            vuln_ids = [item['vuln_id'] for item in identifiers]
+            
         total_vulns = len(vuln_ids)
         mode_str = "Update" if update else "Retry" if retry else "Standard"
         if not log_dir:
@@ -546,7 +571,12 @@ def init_graph(
     try:
         config_mgr = ConfigManager()
         api_client = ApiClient()
-        vuln_ids = [vulnid] if vulnid else get_vuln_ids_from_collection(collection, config_mgr)
+        if vulnid:
+            vuln_ids = [vulnid]
+        else:
+            identifiers = get_vuln_identifiers_from_collection(collection, config_mgr)
+            vuln_ids = [item['vuln_id'] for item in identifiers]
+            
         total_vulns = len(vuln_ids)
         if not log_dir:
             log_dir = Path("./run_logs")
@@ -669,6 +699,112 @@ def init_graph(
         console.print(f"\n[bold red]API Error:[/bold red] {e}")
         raise typer.Exit(code=1)
 
+
+@app.command()
+def links(
+    collection: Optional[str] = typer.Option(None, "--collection", "-c", help="Name of the collection file containing vulnerability IDs."),
+    vulnid: Optional[str] = typer.Option(None, "--vulnid", "-v", help="A single vulnerability ID to process."),
+):
+    """
+    Fetches and displays data source links for vulnerabilities.
+    """
+    console = Console()
+    if not collection and not vulnid:
+        console.print("[bold red]Error:[/bold red] Please provide either a --collection or a --vulnid.")
+        raise typer.Exit(code=1)
+    if collection and vulnid:
+        console.print("[bold red]Error:[/bold red] Options --collection and --vulnid are mutually exclusive.")
+        raise typer.Exit(code=1)
+
+    try:
+        config_mgr = ConfigManager()
+        api_client = ApiClient()
+        
+        if vulnid:
+            identifiers = [{"cve_id": None, "vuln_id": vulnid}]
+        else:
+            identifiers = get_vuln_identifiers_from_collection(collection, config_mgr)
+
+        for item in identifiers:
+            vuln_id = item['vuln_id']
+            cve_id = item.get('cve_id')
+
+            try:
+                # If CVE ID is not in the collection, fetch it from the API
+                if not cve_id:
+                    vuln_response = api_client.get(f"/vulnerability_records/{vuln_id}")
+                    vuln_data = vuln_response.json()
+                    cve_id = vuln_data.get("cve_id", "N/A")
+
+                # Fetch data sources
+                response = api_client.get(f"/vulnerability_records/{vuln_id}/data_sources/")
+                
+                if response.status_code == 404:
+                    console.print(f"[italic grey]No data sources found for {cve_id} - {vuln_id}[/italic grey]")
+                    continue
+
+                response.raise_for_status()
+                data_sources = response.json()
+
+                if not data_sources:
+                    console.print(f"[italic grey]No data sources found for {cve_id} - {vuln_id}[/italic grey]")
+                    continue
+
+                # Sort data sources
+                data_sources.sort(key=lambda x: x.get('testCategory') != 'webExploit')
+
+                table = Table(title=f"Data Sources for {cve_id} - {vuln_id}")
+                table.add_column("URL", style="cyan", no_wrap=False, width=50)
+                table.add_column("CVEs", style="magenta", no_wrap=True)
+                table.add_column("Test Category", style="green")
+
+                for source in data_sources:
+                    url = source.get("url", "")
+                    cves = source.get("cves", [])
+                    test_category = source.get("testCategory", "")
+                    classifier_status = source.get("classifierStatus", "")
+                    scraped_status = source.get("scrapedStatus", "")
+
+                    style = ""
+                    if test_category == 'webExploit':
+                        style = "bold red"
+                    elif test_category == 'nonWebExploit':
+                        style = "bold amber"
+                    elif test_category == 'Non-test':
+                        style = "bold grey"
+                    elif not test_category:
+                        if classifier_status == 'complete' or classifier_status == 'error':
+                            style = "amber"
+                        elif scraped_status == 'complete':
+                            style = "italic white"
+                        elif scraped_status == 'error':
+                            style = "italic amber"
+                        else:
+                            style = "italic grey"
+                    
+                    cve_display = ", ".join(cves[:1])
+                    if len(cves) > 1:
+                        cve_display += ", ..."
+
+                    table.add_row(
+                        f"[{style}]{url}[/{style}]",
+                        cve_display,
+                        test_category,
+                    )
+                
+                console.print(table)
+
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code == 404:
+                    console.print(f"[italic grey]No data sources found for {vuln_id}[/italic grey]")
+                else:
+                    console.print(f"[bold red]Error fetching data for {vuln_id}: {e.response.status_code}[/bold red]")
+            except httpx.RequestError as e:
+                console.print(f"[bold red]Network error for {vuln_id}: {e}[/bold red]")
+
+    except AuthenticationError as e:
+        console.print(f"\n[bold red]API Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
 
 if __name__ == "__main__":
     app()
