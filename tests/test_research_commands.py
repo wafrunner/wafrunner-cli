@@ -7,7 +7,13 @@ import httpx
 from wafrunner_cli.commands.research import app as research_app
 from wafrunner_cli.core.exceptions import AuthenticationError
 
+import re
+
 runner = CliRunner()
+
+def strip_ansi(text):
+    return re.sub(r'\x1b\[[0-9;]*[a-zA-Z]', '', text)
+
 
 @pytest.fixture
 def mock_api_client(mocker):
@@ -72,6 +78,36 @@ def test_github_command_with_collection_succeeds(mock_api_client, mock_config_ma
     collection_file.write_text("VULN-001\nVULN-002")
 
     result = runner.invoke(research_app, ["github", "--collection", "my-collection.txt"])
+    
+    assert result.exit_code == 0
+    assert "Found 2 vulnerability ID(s) to process." in result.stdout
+    assert "Triggered: 2" in result.stdout
+    
+    mock_api_client.get.assert_has_calls([
+        call("/vulnerability_records/VULN-001"),
+        call("/vulnerability_records/VULN-002")
+    ], any_order=True)
+    
+    mock_api_client.post.assert_has_calls([
+        call("/vulnerability_records/VULN-001/actions/search", json={"searchType": "github"}),
+        call("/vulnerability_records/VULN-002/actions/search", json={"searchType": "github"})
+    ], any_order=True)
+
+def test_github_command_with_json_collection_succeeds(mock_api_client, mock_config_manager, tmp_path):
+    """Test a successful 'github' run with a JSON collection file."""
+    collection_dir = tmp_path / "collections"
+    collection_dir.mkdir()
+    collection_file = collection_dir / "my-collection.json"
+    collection_file.write_text("""
+    {
+        "vulnerabilities": [
+            {"cve_id": "CVE-2021-44228", "vuln_id": "VULN-001"},
+            {"cve_id": "CVE-2021-44229", "vuln_id": "VULN-002"}
+        ]
+    }
+    """)
+
+    result = runner.invoke(research_app, ["github", "--collection", "my-collection"])
     
     assert result.exit_code == 0
     assert "Found 2 vulnerability ID(s) to process." in result.stdout
@@ -387,3 +423,195 @@ def test_classify_auth_error_handling(mock_api_client, mock_config_manager):
     result = runner.invoke(research_app, ["classify", "--vulnid", "VULN-123"])
     assert result.exit_code == 1
     assert "API Error: Invalid API Key" in result.stdout
+
+# --- Tests for the 'links' command ---
+
+def test_links_command_no_identifier_fails():
+    """Test that 'links' exits with an error if no identifier is provided."""
+    result = runner.invoke(research_app, ["links"])
+    assert result.exit_code == 1
+    assert "Error: Please provide either a --collection or a --vulnid." in result.stdout
+
+def test_links_command_both_identifiers_fail():
+    """Test that 'links' exits with an error if both identifiers are provided."""
+    result = runner.invoke(research_app, ["links", "--collection", "my-coll", "--vulnid", "VULN-123"])
+    assert result.exit_code == 1
+    assert "Error: Options --collection and --vulnid are mutually exclusive." in result.stdout
+
+def test_links_command_with_vulnid_succeeds(mock_api_client, mock_config_manager):
+    """Test a successful 'links' run with a single vulnID."""
+    mock_vuln_response = MagicMock(spec=httpx.Response)
+    mock_vuln_response.status_code = 200
+    mock_vuln_response.json.return_value = {"cve_id": "CVE-2021-44228"}
+
+    mock_data_response = MagicMock(spec=httpx.Response)
+    mock_data_response.status_code = 200
+    mock_data_response.json.return_value = [
+        {
+            "url": "http://example.com/webexploit",
+            "cves": ["CVE-2021-44228"],
+            "testCategory": "webExploit",
+        }
+    ]
+    mock_api_client.get.side_effect = [mock_vuln_response, mock_data_response]
+
+    result = runner.invoke(research_app, ["links", "--vulnid", "VULN-123"])
+    output = strip_ansi(result.stdout)
+    assert result.exit_code == 0
+    assert "Data Sources for CVE-2021-44228 - VULN-123" in output
+    assert "http://example.com/webexploit" in output
+
+def test_links_command_no_data_sources(mock_api_client, mock_config_manager):
+    """Test 'links' command when no data sources are found."""
+    mock_vuln_response = MagicMock(spec=httpx.Response)
+    mock_vuln_response.status_code = 200
+    mock_vuln_response.json.return_value = {"cve_id": "CVE-2021-44228"}
+
+    mock_data_response = MagicMock(spec=httpx.Response)
+    mock_data_response.status_code = 404
+    mock_api_client.get.side_effect = [mock_vuln_response, mock_data_response]
+
+    result = runner.invoke(research_app, ["links", "--vulnid", "VULN-123"])
+    assert result.exit_code == 0
+    assert "No data sources found for CVE-2021-44228 - VULN-123" in result.stdout
+
+def test_links_command_with_json_collection_uses_collection_cve_for_title(mock_api_client, mock_config_manager, tmp_path):
+    """Test 'links' uses the CVE from the JSON collection for the title, not from the data source record."""
+    # 1. Setup: Create a mock JSON collection file
+    collection_dir = tmp_path / "collections"
+    collection_dir.mkdir()
+    collection_file = collection_dir / "my-collection.json"
+    collection_file.write_text("""
+    {
+        "vulnerabilities": [
+            {
+                "cve_id": "CVE-FROM-COLLECTION", 
+                "vuln_id": "VULN-123"
+            }
+        ]
+    }
+    """)
+
+    # 2. Mock API responses
+    # Only the data_sources endpoint should be called. The vuln_record endpoint should NOT be called.
+    mock_data_response = MagicMock(spec=httpx.Response)
+    mock_data_response.status_code = 200
+    mock_data_response.json.return_value = [
+        {
+            "url": "http://example.com/exploit",
+            "cves": ["CVE-FROM-DATASOURCE"], # This CVE should appear in the row, not the title
+            "testCategory": "webExploit",
+        }
+    ]
+    # We are NOT using side_effect here because only one type of GET call is expected.
+    mock_api_client.get.return_value = mock_data_response
+
+    # 3. Run the command
+    result = runner.invoke(research_app, ["links", "--collection", "my-collection"])
+    output = strip_ansi(result.stdout)
+
+    # 4. Assert
+    assert result.exit_code == 0
+    # The API call to get the vuln record should have been skipped
+    mock_api_client.get.assert_called_once_with("/vulnerability_records/VULN-123/data_sources/")
+    
+    # Assert the title uses the CVE from the collection file
+    assert "Data Sources for CVE-FROM-COLLECTION - VULN-123" in output
+    
+    # Assert the table content is correct
+    assert "http://example.com/exploit" in output
+    assert "CVE-FROM-DATASOURCE" in output
+
+
+def test_links_command_with_txt_collection_fetches_cve_for_title(mock_api_client, mock_config_manager, tmp_path):
+    """Test 'links' fetches the CVE from the API for the title when using a .txt collection."""
+    # 1. Setup: Create a mock .txt collection file
+    collection_file = tmp_path / "my-collection.txt"
+    collection_file.write_text("VULN-123")
+
+    # 2. Mock API responses for both the vuln record and the data sources
+    mock_vuln_response = MagicMock(spec=httpx.Response)
+    mock_vuln_response.status_code = 200
+    mock_vuln_response.json.return_value = {"cve_id": "CVE-FETCHED-FROM-API"}
+
+    mock_data_response = MagicMock(spec=httpx.Response)
+    mock_data_response.status_code = 200
+    mock_data_response.json.return_value = [
+        {
+            "url": "http://example.com/exploit",
+            "cves": ["CVE-FROM-DATASOURCE"],
+        }
+    ]
+    # The command should first fetch the vuln record, then the data sources
+    mock_api_client.get.side_effect = [mock_vuln_response, mock_data_response]
+
+    # 3. Run the command
+    result = runner.invoke(research_app, ["links", "--collection", "my-collection.txt"])
+    output = strip_ansi(result.stdout)
+    
+    # 4. Assert
+    assert result.exit_code == 0
+    # Assert both API calls were made in the correct order
+    mock_api_client.get.assert_has_calls([
+        call("/vulnerability_records/VULN-123"),
+        call("/vulnerability_records/VULN-123/data_sources/")
+    ])
+    
+    # Assert the title uses the CVE fetched from the API
+    assert "Data Sources for CVE-FETCHED-FROM-API - VULN-123" in output
+    
+    # Assert the table content is correct
+    assert "http://example.com/exploit" in output
+    assert "CVE-FROM-DATASOURCE" in output
+
+
+def test_links_command_styling(mock_api_client, mock_config_manager):
+    """Test the styling logic for the 'links' command."""
+    mock_vuln_response = MagicMock(spec=httpx.Response)
+    mock_vuln_response.status_code = 200
+    mock_vuln_response.json.return_value = {"cve_id": "CVE-2021-44228"}
+
+    mock_data_response = MagicMock(spec=httpx.Response)
+    mock_data_response.status_code = 200
+    mock_data_response.json.return_value = [
+        {
+            "url": "http://example.com/webexploit",
+            "cves": ["CVE-2021-44228"],
+            "testCategory": "webExploit",
+        },
+        {
+            "url": "http://example.com/nonWebExploit",
+            "cves": ["CVE-2021-44228"],
+            "testCategory": "nonWebExploit",
+        },
+        {
+            "url": "http://example.com/non-test",
+            "cves": ["CVE-2021-44228"],
+            "testCategory": "Non-test",
+        },
+        {
+            "url": "http://example.com/classified-complete",
+            "cves": ["CVE-2021-44228"],
+            "classifierStatus": "complete",
+        },
+        {
+            "url": "http://example.com/scraped-complete",
+            "cves": ["CVE-2021-44228"],
+            "scrapedStatus": "complete",
+        },
+        {
+            "url": "http://example.com/default",
+            "cves": ["CVE-2021-44228"],
+        },
+    ]
+    mock_api_client.get.side_effect = [mock_vuln_response, mock_data_response]
+
+    result = runner.invoke(research_app, ["links", "--vulnid", "VULN-123"])
+    output = strip_ansi(result.stdout)
+    assert result.exit_code == 0
+    assert "http://example.com/webexploit" in output
+    assert "http://example.com/nonWebExploit" in output
+    assert "http://example.com/non-test" in output
+    assert "http://example.com/classified-complete" in output
+    assert "http://example.com/scraped-complete" in output
+    assert "http://example.com/default" in output
