@@ -15,7 +15,7 @@ app = typer.Typer(
 app.add_typer(collection.app, name="collection", help="Commands for managing local collections of vulnerabilities.")
 app.add_typer(research.app, name="research", help="Commands for initiating research and analysis tasks.")
 app.add_typer(data.app, name="data", help="Commands for downloading and managing research artifacts.")
-app.add_typer(update.app, name="update", help="Commands for updating local data.")
+app.command("update", help="Downloads the latest CVE ID to vulnID lookup file or reverts to the previous version.")(update.update)
 
 # Add standalone commands to the main app
 app.command("configure")(configure.configure)

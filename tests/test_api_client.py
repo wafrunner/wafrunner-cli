@@ -154,7 +154,7 @@ def test_api_client_fails_after_all_retries(mocker):
     )
 
     # Act & Assert
-    with pytest.raises(httpx.RequestError, match="API request failed after 3 retries"):
+    with pytest.raises(httpx.RequestError, match="API request failed after 5 retries"):
         api_client = ApiClient()
         api_client.get("/non-existent-endpoint")
 

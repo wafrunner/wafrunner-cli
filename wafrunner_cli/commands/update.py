@@ -2,22 +2,17 @@ import typer
 from rich import print
 from pathlib import Path
 import httpx
-import json
 import glob
 import os
-from datetime import datetime
 
 from wafrunner_cli.core.config_manager import ConfigManager
 from wafrunner_cli.core.api_client import ApiClient
 
-app = typer.Typer(help="Commands for updating local data.")
-
-def get_lookup_dir() -> Path:
-    """Returns the directory where lookup files are stored."""
-    config_manager = ConfigManager()
-    lookup_dir = config_manager.get_data_dir() / "cve-lookup"
-    lookup_dir.mkdir(parents=True, exist_ok=True)
-    return lookup_dir
+app = typer.Typer(
+    name="update",
+    help="Downloads the latest CVE ID to vulnID lookup file or reverts to the previous version.",
+    no_args_is_help=True
+)
 
 @app.command()
 def update(
@@ -32,6 +27,13 @@ def update(
         handle_revert(lookup_dir)
     else:
         handle_update(lookup_dir)
+
+def get_lookup_dir() -> Path:
+    """Returns the directory where lookup files are stored."""
+    config_manager = ConfigManager()
+    lookup_dir = config_manager.get_data_dir() / "cve-lookup"
+    lookup_dir.mkdir(parents=True, exist_ok=True)
+    return lookup_dir
 
 def handle_update(lookup_dir: Path):
     """Handles the download and cleanup of the lookup file."""
