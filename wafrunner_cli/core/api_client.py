@@ -104,6 +104,9 @@ class ApiClient:
         raise httpx.RequestError(f"API request failed after {MAX_API_RETRIES} retries.")
 
     # ... get, post, put methods remain the same ...
+    def get_cve_lookup_download_url(self) -> Any:
+        return self._request("GET", "/cve-lookups/latest/download-url")
+
     def get(self, endpoint: str, params: dict | None = None) -> Any:
         return self._request("GET", endpoint, params=params)
 

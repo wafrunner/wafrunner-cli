@@ -80,7 +80,7 @@ def test_get_typer_completions():
     assert completions["group1"]["group2"]["subcmd2"] == {}
 
     # 3. Check command with an option returns a completer instance
-    assert isinstance(completions["group1"]["subcmd1"], FuzzyWordCompleter)
+    assert completions["group1"]["subcmd1"] == {"--force": None}
 
     # 4. Check that the shell command is excluded
     assert "shell" not in completions

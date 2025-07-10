@@ -37,7 +37,7 @@ def _get_typer_completions(app: typer.Typer) -> dict:
                 opts.extend(opt for opt in click_param.opts if opt and opt.startswith('--'))
 
         # Filter out None and ensure correct structure for NestedCompleter
-        completions[command_info.name] = {opt: None for opt in opts if opt} if opts else None
+        completions[command_info.name] = {opt: None for opt in opts if opt} if opts else {}
 
     return completions
 

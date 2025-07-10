@@ -32,3 +32,9 @@ class ConfigManager:
             return None
         except (configparser.Error, IOError):
             return None
+
+    def get_data_dir(self) -> Path:
+        """Returns the path to the data directory."""
+        data_dir = self.config_dir / "data"
+        data_dir.mkdir(parents=True, exist_ok=True)
+        return data_dir

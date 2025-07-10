@@ -1,7 +1,7 @@
 import typer
 
 # Import the Typer apps from your command modules
-from .commands import cve, collection, research, data, configure, shell
+from .commands import collection, research, data, configure, shell, update
 
 # Create the main Typer app
 app = typer.Typer(
@@ -12,10 +12,10 @@ app = typer.Typer(
 )
 
 # Add the command groups (sub-typers) to the main app
-app.add_typer(cve.app, name="cve", help="Commands for managing CVE data.")
 app.add_typer(collection.app, name="collection", help="Commands for managing local collections of vulnerabilities.")
 app.add_typer(research.app, name="research", help="Commands for initiating research and analysis tasks.")
 app.add_typer(data.app, name="data", help="Commands for downloading and managing research artifacts.")
+app.command("update", help="Downloads the latest CVE ID to vulnID lookup file or reverts to the previous version.")(update.update)
 
 # Add standalone commands to the main app
 app.command("configure")(configure.configure)
