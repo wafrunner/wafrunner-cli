@@ -1,42 +1,52 @@
 
-from pathlib import Path
-import json
-import glob
-import os
-from rich import print
+import re
+from wafrunner_cli.core.database import Database
 
-from wafrunner_cli.core.config_manager import ConfigManager
+# Regex for CVE ID format (e.g., CVE-2024-12345)
+CVE_REGEX = re.compile(r"^CVE-\d{4}-\d{4,7}$", re.IGNORECASE)
 
-_cache = {
-    "lookup_data": None,
-    "file_path": None
-}
-
-def get_lookup_dir() -> Path:
-    """Returns the directory where lookup files are stored."""
-    config_manager = ConfigManager()
-    lookup_dir = config_manager.get_data_dir() / "cve-lookup"
-    lookup_dir.mkdir(parents=True, exist_ok=True)
-    return lookup_dir
+# Regex for UUID format (e.g., a1ddadd4-1b9d-4fab-90fe-64c1c763cd58)
+VULN_ID_REGEX = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE)
 
 def get_vuln_id(cve_id: str) -> str | None:
     """Gets the vulnID for a given CVE ID."""
-    lookup_dir = get_lookup_dir()
-    files = sorted(glob.glob(str(lookup_dir / "*.json")), key=os.path.getmtime, reverse=True)
-
-    if not files:
-        print("[bold red]Error: No CVE lookup file found. Please run 'wafrunner update'.[/bold red]")
+    if not CVE_REGEX.match(cve_id):
         return None
+    db = Database()
+    db.cursor.execute("SELECT vuln_id FROM cve_lookup WHERE cve_id = ?", (cve_id.upper(),))
+    result = db.cursor.fetchone()
+    db.close()
+    return result[0] if result else None
 
-    latest_file = Path(files[0])
+def get_cve_id(vuln_id: str) -> str | None:
+    """Gets the CVE ID for a given vulnID."""
+    if not VULN_ID_REGEX.match(vuln_id):
+        return None
+    db = Database()
+    db.cursor.execute("SELECT cve_id FROM cve_lookup WHERE vuln_id = ?", (vuln_id,))
+    result = db.cursor.fetchone()
+    db.close()
+    return result[0] if result else None
 
-    if _cache["file_path"] != latest_file:
-        try:
-            with open(latest_file, "r", encoding="utf-8") as f:
-                _cache["lookup_data"] = json.load(f)
-                _cache["file_path"] = latest_file
-        except (json.JSONDecodeError, IOError) as e:
-            print(f"[bold red]Error reading lookup file: {e}[/bold red]")
-            return None
+def lookup_ids(identifier: str) -> dict[str, str] | None:
+    """
+    Looks up both CVE ID and vulnID from either a CVE ID or a vulnID.
 
-    return _cache["lookup_data"].get(cve_id)
+    Args:
+        identifier: The CVE ID or vulnID to look up.
+
+    Returns:
+        A dictionary with 'cve_id' and 'vuln_id' keys, or None if not found.
+    """
+    if CVE_REGEX.match(identifier):
+        cve_id = identifier.upper()
+        vuln_id = get_vuln_id(cve_id)
+        if vuln_id:
+            return {"cve_id": cve_id, "vuln_id": vuln_id}
+    elif VULN_ID_REGEX.match(identifier):
+        vuln_id = identifier
+        cve_id = get_cve_id(vuln_id)
+        if cve_id:
+            return {"cve_id": cve_id, "vuln_id": vuln_id}
+
+    return None

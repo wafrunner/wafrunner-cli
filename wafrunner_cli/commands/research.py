@@ -22,6 +22,7 @@ from rich.table import Table
 
 from wafrunner_cli.core.api_client import ApiClient
 from wafrunner_cli.core.exceptions import AuthenticationError
+from wafrunner_cli.core.lookup_service import lookup_ids
 
 # --- Config Manager (for data dir only) ---
 class ConfigManager:
@@ -37,7 +38,7 @@ def get_vuln_identifiers_from_collection(collection_name: str, config_manager: C
     """
     Parses a collection file (.json or .txt) and returns a list of vulnerability identifiers.
     For JSON, expects a list of objects with 'cve_id' and 'vuln_id'.
-    For TXT, assumes each line is a vuln_id.
+    For TXT, assumes each line is a vuln_id or cve_id.
     Returns: A list of dictionaries, e.g., [{'cve_id': 'CVE-xxx', 'vuln_id': 'guid-xxx'}, ...]
     """
     data_dir = config_manager.get_data_dir()
@@ -68,9 +69,13 @@ def get_vuln_identifiers_from_collection(collection_name: str, config_manager: C
         try:
             with open(target_path, "r", encoding='utf-8') as f:
                 for line in f:
-                    vuln_id = line.strip()
-                    if vuln_id:
-                        identifiers.append({"cve_id": None, "vuln_id": vuln_id})
+                    identifier = line.strip()
+                    if identifier:
+                        resolved_ids = lookup_ids(identifier)
+                        if resolved_ids:
+                            identifiers.append(resolved_ids)
+                        else:
+                            console.print(f"[bold yellow]Warning:[/bold yellow] Could not resolve identifier: {identifier}")
         except IOError as e:
             console.print(f"[bold red]File Error:[/bold red] Could not read file {target_path}: {e}")
             raise typer.Exit(code=1)
@@ -84,40 +89,51 @@ def get_vuln_identifiers_from_collection(collection_name: str, config_manager: C
         
     return identifiers
 
+def _resolve_identifier(identifier: str) -> str | None:
+    """Resolves a CVE or vulnID to a vulnID."""
+    console = Console()
+    ids = lookup_ids(identifier)
+    if not ids:
+        console.print(f"[bold red]Error:[/bold red] Could not resolve identifier: {identifier}")
+        raise typer.Exit(code=1)
+    return ids.get("vuln_id")
+
 app = typer.Typer(
     name="research",
     help="Commands for initiating research and analysis tasks.",
     no_args_is_help=True
 )
 
-
-
-
 @app.command()
 def github(
     collection: Optional[str] = typer.Option(None, "--collection", "-c", help="Name of the collection file containing vulnerability IDs."),
-    vulnid: Optional[str] = typer.Option(None, "--vulnid", "-v", help="A single vulnerability ID to process."),
+    identifier: Optional[str] = typer.Option(None, "--id", "-i", help="A single vulnerability ID or CVE ID to process."),
     force: bool = typer.Option(False, "--force", "-f", help="Force a new search even if a completed search already exists."),
     max_workers: int = typer.Option(10, "--max-workers", help="Max number of parallel workers for large collections."),
 ):
     """Trigger GitHub searches for vulnerabilities from a collection or a single ID."""
     console = Console()
-    if not collection and not vulnid:
-        console.print("[bold red]Error:[/bold red] Please provide either a --collection or a --vulnid.")
+    if not collection and not identifier:
+        console.print("[bold red]Error:[/bold red] Please provide either a --collection or an --id.")
         raise typer.Exit(code=1)
-    if collection and vulnid:
-        console.print("[bold red]Error:[/bold red] Options --collection and --vulnid are mutually exclusive.")
+    if collection and identifier:
+        console.print("[bold red]Error:[/bold red] Options --collection and --id are mutually exclusive.")
         raise typer.Exit(code=1)
 
     try:
         config_mgr = ConfigManager()
         api_client = ApiClient()
         
-        if vulnid:
-            vuln_ids = [vulnid]
+        if identifier:
+            vuln_id = _resolve_identifier(identifier)
+            vuln_ids = [vuln_id] if vuln_id else []
         else:
             identifiers = get_vuln_identifiers_from_collection(collection, config_mgr)
             vuln_ids = [item['vuln_id'] for item in identifiers]
+
+        if not vuln_ids:
+            console.print("[bold red]Error:[/bold red] No valid vulnerability IDs found to process.")
+            raise typer.Exit(code=1)
 
         console.print(f"Found {len(vuln_ids)} vulnerability ID(s) to process.")
         if force:
@@ -219,26 +235,31 @@ def github(
 @app.command()
 def scrape(
     collection: Optional[str] = typer.Option(None, "--collection", "-c", help="Name of the collection file containing vulnerability IDs."),
-    vulnid: Optional[str] = typer.Option(None, "--vulnid", "-id", help="A single vulnerability ID to process.")
+    identifier: Optional[str] = typer.Option(None, "--id", "-i", help="A single vulnerability ID or CVE ID to process.")
 ):
     """Trigger scrapes for data sources associated with vulnerabilities."""
     console = Console()
-    if not collection and not vulnid:
-        console.print("[bold red]Error:[/bold red] Please provide either a --collection or a --vulnid.")
+    if not collection and not identifier:
+        console.print("[bold red]Error:[/bold red] Please provide either a --collection or an --id.")
         raise typer.Exit(code=1)
-    if collection and vulnid:
-        console.print("[bold red]Error:[/bold red] Options --collection and --vulnid are mutually exclusive.")
+    if collection and identifier:
+        console.print("[bold red]Error:[/bold red] Options --collection and --id are mutually exclusive.")
         raise typer.Exit(code=1)
 
     try:
         config_mgr = ConfigManager()
         api_client = ApiClient()
 
-        if vulnid:
-            vuln_ids = [vulnid]
+        if identifier:
+            vuln_id = _resolve_identifier(identifier)
+            vuln_ids = [vuln_id] if vuln_id else []
         else:
             identifiers = get_vuln_identifiers_from_collection(collection, config_mgr)
             vuln_ids = [item['vuln_id'] for item in identifiers]
+
+        if not vuln_ids:
+            console.print("[bold red]Error:[/bold red] No valid vulnerability IDs found to process.")
+            raise typer.Exit(code=1)
 
         console.print(f"Found {len(vuln_ids)} vulnerability ID(s) to process for scraping.")
 
@@ -328,7 +349,7 @@ def scrape(
 @app.command()
 def classify(
     collection: Optional[str] = typer.Option(None, "--collection", "-c", help="Name of the collection file containing vulnerability IDs."),
-    vulnid: Optional[str] = typer.Option(None, "--vulnid", "-v", help="A single vulnerability ID to process."),
+    identifier: Optional[str] = typer.Option(None, "--id", "-i", help="A single vulnerability ID or CVE ID to process."),
     update: bool = typer.Option(False, "--update", "-u", help="Trigger classifier even if status is 'complete' or 'error'."),
     retry: bool = typer.Option(False, "--retry", "-r", help="Trigger classifier ONLY if status is 'error'."),
     max_workers: int = typer.Option(16, "--max-workers", "-t", help="Number of worker threads."),
@@ -338,14 +359,14 @@ def classify(
     """
     Trigger classifier for vulnerabilities from a collection or a single ID, using multithreading.
 
-    You must provide either --collection/-c or --vulnid/-v.
+    You must provide either --collection/-c or --id/-i.
     """
     console = Console()
-    if not collection and not vulnid:
-        console.print("[bold red]Error:[/bold red] Please provide either a --collection or a --vulnid.")
+    if not collection and not identifier:
+        console.print("[bold red]Error:[/bold red] Please provide either a --collection or an --id.")
         raise typer.Exit(code=1)
-    if collection and vulnid:
-        console.print("[bold red]Error:[/bold red] Options --collection and --vulnid are mutually exclusive.")
+    if collection and identifier:
+        console.print("[bold red]Error:[/bold red] Options --collection and --id are mutually exclusive.")
         raise typer.Exit(code=1)
     if update and retry:
         console.print("[bold red]Error:[/bold red] --update and --retry are mutually exclusive.")
@@ -355,12 +376,17 @@ def classify(
         config_mgr = ConfigManager()
         api_client = ApiClient()
         
-        if vulnid:
-            vuln_ids = [vulnid]
+        if identifier:
+            vuln_id = _resolve_identifier(identifier)
+            vuln_ids = [vuln_id] if vuln_id else []
         else:
             identifiers = get_vuln_identifiers_from_collection(collection, config_mgr)
             vuln_ids = [item['vuln_id'] for item in identifiers]
             
+        if not vuln_ids:
+            console.print("[bold red]Error:[/bold red] No valid vulnerability IDs found to process.")
+            raise typer.Exit(code=1)
+
         total_vulns = len(vuln_ids)
         mode_str = "Update" if update else "Retry" if retry else "Standard"
         if not log_dir:
@@ -519,7 +545,7 @@ def classify(
             "mode": mode_str,
             "threads": max_workers,
             "input_collection": collection,
-            "input_vulnid": vulnid,
+            "input_vulnid": identifier,
             "summary": {
                 "processed_vulnIDs": processed_vuln_count,
                 "total_vulnIDs_in_collection": total_vulns,
@@ -550,7 +576,7 @@ def classify(
 @app.command("init-graph")
 def init_graph(
     collection: Optional[str] = typer.Option(None, "--collection", "-c", help="Name of the collection file containing vulnerability IDs."),
-    vulnid: Optional[str] = typer.Option(None, "--vulnid", "-v", help="A single vulnerability ID to process."),
+    identifier: Optional[str] = typer.Option(None, "--id", "-i", help="A single vulnerability ID or CVE ID to process."),
     max_workers: int = typer.Option(16, "--max-workers", "-t", help="Number of worker threads."),
     verbose: bool = typer.Option(False, "--verbose", "-V", help="Show progress bar and verbose logs."),
     log_dir: Optional[Path] = typer.Option(None, "--log-dir", help="Directory to save the detailed JSON log file (default: ./run_logs)"),
@@ -558,25 +584,30 @@ def init_graph(
     """
     Trigger exploit graph initialization for vulnerabilities from a collection or a single ID, using multithreading.
 
-    You must provide either --collection/-c or --vulnid/-v.
+    You must provide either --collection/-c or --id/-i.
     """
     console = Console()
-    if not collection and not vulnid:
-        console.print("[bold red]Error:[/bold red] Please provide either a --collection or a --vulnid.")
+    if not collection and not identifier:
+        console.print("[bold red]Error:[/bold red] Please provide either a --collection or an --id.")
         raise typer.Exit(code=1)
-    if collection and vulnid:
-        console.print("[bold red]Error:[/bold red] Options --collection and --vulnid are mutually exclusive.")
+    if collection and identifier:
+        console.print("[bold red]Error:[/bold red] Options --collection and --id are mutually exclusive.")
         raise typer.Exit(code=1)
 
     try:
         config_mgr = ConfigManager()
         api_client = ApiClient()
-        if vulnid:
-            vuln_ids = [vulnid]
+        if identifier:
+            vuln_id = _resolve_identifier(identifier)
+            vuln_ids = [vuln_id] if vuln_id else []
         else:
             identifiers = get_vuln_identifiers_from_collection(collection, config_mgr)
             vuln_ids = [item['vuln_id'] for item in identifiers]
             
+        if not vuln_ids:
+            console.print("[bold red]Error:[/bold red] No valid vulnerability IDs found to process.")
+            raise typer.Exit(code=1)
+
         total_vulns = len(vuln_ids)
         if not log_dir:
             log_dir = Path("./run_logs")
@@ -674,7 +705,7 @@ def init_graph(
             "run_timestamp": datetime.now(timezone.utc).isoformat(),
             "threads": max_workers,
             "input_collection": collection,
-            "input_vulnid": vulnid,
+            "input_vulnid": identifier,
             "summary": {
                 "processed_vulnIDs": processed_vuln_count,
                 "total_vulnIDs_in_collection": total_vulns,
@@ -703,25 +734,30 @@ def init_graph(
 @app.command()
 def links(
     collection: Optional[str] = typer.Option(None, "--collection", "-c", help="Name of the collection file containing vulnerability IDs."),
-    vulnid: Optional[str] = typer.Option(None, "--vulnid", "-v", help="A single vulnerability ID to process."),
+    identifier: Optional[str] = typer.Option(None, "--id", "-i", help="A single vulnerability ID or CVE ID to process."),
 ):
     """
     Fetches and displays data source links for vulnerabilities.
     """
     console = Console()
-    if not collection and not vulnid:
-        console.print("[bold red]Error:[/bold red] Please provide either a --collection or a --vulnid.")
+    if not collection and not identifier:
+        console.print("[bold red]Error:[/bold red] Please provide either a --collection or an --id.")
         raise typer.Exit(code=1)
-    if collection and vulnid:
-        console.print("[bold red]Error:[/bold red] Options --collection and --vulnid are mutually exclusive.")
+    if collection and identifier:
+        console.print("[bold red]Error:[/bold red] Options --collection and --id are mutually exclusive.")
         raise typer.Exit(code=1)
 
     try:
         config_mgr = ConfigManager()
         api_client = ApiClient()
         
-        if vulnid:
-            identifiers = [{"cve_id": None, "vuln_id": vulnid}]
+        if identifier:
+            resolved_ids = lookup_ids(identifier)
+            if resolved_ids:
+                identifiers = [resolved_ids]
+            else:
+                console.print(f"[bold red]Error:[/bold red] Could not resolve identifier: {identifier}")
+                raise typer.Exit(code=1)
         else:
             identifiers = get_vuln_identifiers_from_collection(collection, config_mgr)
 

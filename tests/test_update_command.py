@@ -1,45 +1,45 @@
-import pytest
+import unittest
+from unittest.mock import patch, MagicMock
+
 from typer.testing import CliRunner
-from unittest.mock import MagicMock, patch
-from pathlib import Path
 
 from wafrunner_cli.main import app
 
-runner = CliRunner()
+class TestUpdateCommand(unittest.TestCase):
 
-@pytest.fixture
-def mock_config_manager():
-    with patch('wafrunner_cli.commands.update.ConfigManager') as mock:
-        instance = mock.return_value
-        instance.get_data_dir.return_value = Path('/tmp/wafrunner_test_data')
-        yield mock
+    runner = CliRunner()
 
-@pytest.fixture
-def mock_api_client():
-    with patch('wafrunner_cli.commands.update.ApiClient') as mock:
-        instance = mock.return_value
-        instance.get_cve_lookup_download_url.return_value = MagicMock(
-            json=lambda: {'fileName': 'test.json', 'downloadUrl': 'http://test.com/test.json'}
-        )
-        yield mock
+    @patch('wafrunner_cli.commands.update.ApiClient')
+    @patch('wafrunner_cli.commands.update.Database')
+    @patch('httpx.get')
+    def test_update_success(self, mock_httpx_get, MockDatabase, MockApiClient):
+        # Mock API client for download URL
+        mock_api_instance = MockApiClient.return_value
+        mock_api_instance.get_cve_lookup_download_url.return_value.status_code = 200
+        mock_api_instance.get_cve_lookup_download_url.return_value.json.return_value = {
+            "downloadUrl": "http://fake-url.com/cve.json"
+        }
 
-@pytest.fixture
-def mock_httpx_stream():
-    with patch('wafrunner_cli.commands.update.httpx.stream') as mock:
-        mock.return_value.__enter__.return_value.iter_bytes.return_value = [b'test data']
-        yield mock
+        # Mock httpx.get to return a fake response
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "CVE-2024-0001": {"vulnID": "vuln-0001", "lastModified": "2024-01-01"}
+        }
+        mock_httpx_get.return_value = mock_response
 
-def test_update_command(mock_config_manager, mock_api_client, mock_httpx_stream):
-    result = runner.invoke(app, ["update"])
-    assert result.exit_code == 0
-    assert "Successfully downloaded test.json" in result.stdout
+        # Mock Database
+        mock_db_instance = MockDatabase.return_value
 
-def test_update_command_revert(mock_config_manager):
-    lookup_dir = Path('/tmp/wafrunner_test_data/cve-lookup')
-    lookup_dir.mkdir(parents=True, exist_ok=True)
-    (lookup_dir / 'file1.json').touch()
-    (lookup_dir / 'file2.json').touch()
+        # Run the command
+        result = self.runner.invoke(app, ["update"])
 
-    result = runner.invoke(app, ["update", "--revert"])
-    assert result.exit_code == 0
-    assert "Successfully reverted to" in result.stdout
+        # Assertions
+        self.assertEqual(result.exit_code, 0)
+        self.assertIn("Successfully updated the CVE lookup data.", result.stdout)
+        mock_db_instance.clear_cve_lookup.assert_called_once()
+        mock_db_instance.insert_cve_data.assert_called_once()
+        mock_db_instance.close.assert_called_once()
+
+if __name__ == '__main__':
+    unittest.main()
