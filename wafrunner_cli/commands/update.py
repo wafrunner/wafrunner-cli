@@ -37,6 +37,11 @@ def update():
 
         print("[cyan]Updating the local database...[/cyan]")
         db = Database()
+        
+        # Get the number of existing vulnerabilities
+        db.cursor.execute("SELECT COUNT(*) FROM cve_lookup")
+        initial_count = db.cursor.fetchone()[0]
+
         db.clear_cve_lookup()
         
         # Transform data for insertion
@@ -46,9 +51,14 @@ def update():
         ]
         
         db.insert_cve_data(insert_data)
+
+        # Get the new total
+        db.cursor.execute("SELECT COUNT(*) FROM cve_lookup")
+        new_count = db.cursor.fetchone()[0]
         db.close()
         
-        print("[green]Successfully updated the CVE lookup data.[/green]")
+        added_count = new_count - initial_count
+        print(f"[green]Successfully updated the CVE lookup data. Added {added_count} new vulnerabilities.[/green]")
 
     except httpx.HTTPStatusError as e:
         print(f"[bold red]Error downloading data: {e.response.status_code} - {e.response.text}[/bold red]")

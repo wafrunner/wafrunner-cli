@@ -1,3 +1,4 @@
+
 import unittest
 from unittest.mock import patch, MagicMock
 
@@ -24,19 +25,22 @@ class TestUpdateCommand(unittest.TestCase):
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
-            "CVE-2024-0001": {"vulnID": "vuln-0001", "lastModified": "2024-01-01"}
+            "CVE-2024-0001": {"vulnID": "vuln-0001", "lastModified": "2024-01-01"},
+            "CVE-2024-0002": {"vulnID": "vuln-0002", "lastModified": "2024-01-02"}
         }
         mock_httpx_get.return_value = mock_response
 
         # Mock Database
         mock_db_instance = MockDatabase.return_value
+        mock_cursor = mock_db_instance.cursor
+        mock_cursor.fetchone.side_effect = [(0,), (2,)] # Initial count, then new count
 
         # Run the command
         result = self.runner.invoke(app, ["update"])
 
         # Assertions
         self.assertEqual(result.exit_code, 0)
-        self.assertIn("Successfully updated the CVE lookup data.", result.stdout)
+        self.assertIn("Successfully updated the CVE lookup data. Added 2 new vulnerabilities.", result.stdout)
         mock_db_instance.clear_cve_lookup.assert_called_once()
         mock_db_instance.insert_cve_data.assert_called_once()
         mock_db_instance.close.assert_called_once()
