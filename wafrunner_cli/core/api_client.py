@@ -1,7 +1,7 @@
 import httpx
 from typing import Any
 import time
-import random # Import the random module
+import random  # Import the random module
 from rich import print
 
 from .config_manager import ConfigManager
@@ -9,8 +9,9 @@ from .exceptions import AuthenticationError
 
 # This should be updated to your actual API's base URL
 API_BASE_URL = "https://api.wafrunner.com/v1"
-MAX_API_RETRIES = 5 # Increased retries for more resilience
-API_RETRY_BASE_DELAY = 2.5 # Base delay in seconds for exponential backoff
+MAX_API_RETRIES = 5  # Increased retries for more resilience
+API_RETRY_BASE_DELAY = 2.5  # Base delay in seconds for exponential backoff
+
 
 class ApiClient:
     """Handles all HTTP requests to the wafrunner API."""
@@ -44,19 +45,25 @@ class ApiClient:
                 if 500 <= response.status_code < 600:
                     # --- EXPONENTIAL BACKOFF LOGIC ---
                     # Calculate delay: base_delay * (2^attempt) + random_jitter
-                    backoff_delay = API_RETRY_BASE_DELAY * (2 ** attempt)
-                    jitter = random.uniform(0, backoff_delay * 0.1) # add up to 10% jitter
+                    backoff_delay = API_RETRY_BASE_DELAY * (2**attempt)
+                    jitter = random.uniform(
+                        0, backoff_delay * 0.1
+                    )  # add up to 10% jitter
                     delay = backoff_delay + jitter
 
                     # Check if this is the last attempt
                     if attempt == MAX_API_RETRIES - 1:
                         # Log final failure and break the loop
-                        print(f"[bold red]API server error ({response.status_code}). Final attempt failed. No more retries.[/bold red]")
+                        print(
+                            f"[bold red]API server error ({response.status_code}). "
+                            f"Final attempt failed. No more retries.[/bold red]"
+                        )
                         break
-                    
+
                     print(
-                        f"[yellow]API server error ({response.status_code}). Server may be warming up. "
-                        f"Retrying in {delay:.2f}s... (Attempt {attempt + 1}/{MAX_API_RETRIES})[/yellow]"
+                        f"[yellow]API server error ({response.status_code})."
+                        f"Retrying in {delay:.2f}s... (Attempt {attempt + 1}/"
+                        f"{MAX_API_RETRIES})[/yellow]"
                     )
                     time.sleep(delay)
                     continue
@@ -87,21 +94,32 @@ class ApiClient:
                     ) from e
                 raise
             except httpx.TimeoutException as e:
-                print(f"[bold red]Request Timeout:[/bold red] The request to {e.request.url!r} timed out.")
+                print(
+                    f"[bold red]Request Timeout:[/bold red] The request to "
+                    f"{e.request.url!r} timed out."
+                )
                 # Consider adding retry logic here as well, similar to the 5xx handling
             except httpx.RequestError as e:
-                print(f"[bold red]Network Error:[/bold red] An error occurred while requesting {e.request.url!r}.")
+                print(
+                    f"[bold red]Network Error:[/bold red] An error occurred while "
+                    f"requesting {e.request.url!r}."
+                )
 
             # This part of the original logic is now handled inside the 5xx check
             # but can be kept as a fallback for network errors if desired.
             if attempt < MAX_API_RETRIES - 1:
-                backoff_delay = API_RETRY_BASE_DELAY * (2 ** attempt)
+                backoff_delay = API_RETRY_BASE_DELAY * (2**attempt)
                 jitter = random.uniform(0, 1)
                 delay = backoff_delay + jitter
-                print(f"[yellow]Retrying due to network/timeout error in {delay:.2f}s... ({attempt + 1}/{MAX_API_RETRIES})[/yellow]")
+                print(
+                    f"[yellow]Retrying due to network/timeout error in {delay:.2f}s..."
+                    f" ({attempt + 1}/{MAX_API_RETRIES})[/yellow]"
+                )
                 time.sleep(delay)
 
-        raise httpx.RequestError(f"API request failed after {MAX_API_RETRIES} retries.")
+        raise httpx.RequestError(
+            f"API request failed after {MAX_API_RETRIES} " f"retries."
+        )
 
     # ... get, post, put methods remain the same ...
     def get_cve_lookup_download_url(self) -> Any:

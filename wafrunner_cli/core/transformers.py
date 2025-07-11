@@ -16,7 +16,8 @@ def transform_vulnerability(
     cveID = cve.get("id", "")
     if not cveID:
         print(
-            f"[bold red]Error:[/bold red] Source data is missing 'cve.id'. VulnID (if any): {existing_vulnID}."
+            f"[bold red]Error:[/bold red] Source data is missing 'cve.id'. VulnID (if any):"
+            f" {existing_vulnID}."
         )
         return None
 
@@ -37,9 +38,7 @@ def transform_vulnerability(
     now_date_str = datetime.now().strftime("%Y-%m-%d")
     published_date_full = cve.get("published")
     last_updated_date_full = cve.get("lastModified")
-    published_date = (
-        published_date_full[:10] if published_date_full else now_date_str
-    )
+    published_date = published_date_full[:10] if published_date_full else now_date_str
     last_updated_date = (
         last_updated_date_full[:10] if last_updated_date_full else now_date_str
     )
@@ -67,7 +66,11 @@ def transform_vulnerability(
         m_list = metrics.get(f_name, []) or []
         if isinstance(m_list, list) and m_list:
             p_metric = next(
-                (m for m in m_list if isinstance(m, dict) and m.get("type") == "Primary"),
+                (
+                    m
+                    for m in m_list
+                    if isinstance(m, dict) and m.get("type") == "Primary"
+                ),
                 m_list[0],
             )
             if isinstance(p_metric, dict):

@@ -1,7 +1,6 @@
-
 import sqlite3
-from pathlib import Path
 from wafrunner_cli.core.config_manager import ConfigManager
+
 
 class Database:
     """Handles all SQLite database operations."""
@@ -16,13 +15,15 @@ class Database:
 
     def _create_table(self):
         """Creates the cve_lookup table if it doesn't exist."""
-        self.cursor.execute('''
+        self.cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS cve_lookup (
                 cve_id TEXT PRIMARY KEY,
                 vuln_id TEXT NOT NULL,
                 last_modified TEXT
             )
-        ''')
+        """
+        )
         self.conn.commit()
 
     def clear_cve_lookup(self):
@@ -39,8 +40,9 @@ class Database:
                   'cve_id', 'vuln_id', and 'last_modified' keys.
         """
         self.cursor.executemany(
-            "INSERT OR REPLACE INTO cve_lookup (cve_id, vuln_id, last_modified) VALUES (:cve_id, :vuln_id, :last_modified)",
-            data
+            "INSERT OR REPLACE INTO cve_lookup (cve_id, vuln_id, last_modified) VALUES"
+            " (:cve_id, :vuln_id, :last_modified)",
+            data,
         )
         self.conn.commit()
 

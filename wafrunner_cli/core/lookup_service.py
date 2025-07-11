@@ -1,4 +1,3 @@
-
 import re
 from wafrunner_cli.core.database import Database
 
@@ -6,17 +5,23 @@ from wafrunner_cli.core.database import Database
 CVE_REGEX = re.compile(r"^CVE-\d{4}-\d{4,7}$", re.IGNORECASE)
 
 # Regex for UUID format (e.g., a1ddadd4-1b9d-4fab-90fe-64c1c763cd58)
-VULN_ID_REGEX = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE)
+VULN_ID_REGEX = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE
+)
+
 
 def get_vuln_id(cve_id: str) -> str | None:
     """Gets the vulnID for a given CVE ID."""
     if not CVE_REGEX.match(cve_id):
         return None
     db = Database()
-    db.cursor.execute("SELECT vuln_id FROM cve_lookup WHERE cve_id = ?", (cve_id.upper(),))
+    db.cursor.execute(
+        "SELECT vuln_id FROM cve_lookup WHERE cve_id = ?", (cve_id.upper(),)
+    )
     result = db.cursor.fetchone()
     db.close()
     return result[0] if result else None
+
 
 def get_cve_id(vuln_id: str) -> str | None:
     """Gets the CVE ID for a given vulnID."""
@@ -27,6 +32,7 @@ def get_cve_id(vuln_id: str) -> str | None:
     result = db.cursor.fetchone()
     db.close()
     return result[0] if result else None
+
 
 def lookup_ids(identifier: str) -> dict[str, str] | None:
     """

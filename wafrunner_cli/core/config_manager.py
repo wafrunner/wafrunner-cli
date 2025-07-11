@@ -18,7 +18,9 @@ class ConfigManager:
             with open(self.config_file, "w") as f:
                 self._config.write(f)
         except IOError as e:
-            raise IOError(f"Could not write configuration to {self.config_file}.") from e
+            raise IOError(
+                f"Could not write configuration to {self.config_file}."
+            ) from e
 
     def load_token(self) -> str | None:
         """Loads the API token from the config file."""

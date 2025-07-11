@@ -1,6 +1,5 @@
 import pytest
 import httpx
-import time
 
 from wafrunner_cli.core.api_client import ApiClient
 from wafrunner_cli.core.exceptions import AuthenticationError
@@ -35,7 +34,9 @@ def test_api_client_get_success(mocker):
 
     # We now mock the internal _request method for simplicity in some tests
     # Mock the underlying httpx.Client.request directly for more control
-    mock_httpx_request = mocker.patch("wafrunner_cli.core.api_client.httpx.Client.request")
+    mock_httpx_request = mocker.patch(
+        "wafrunner_cli.core.api_client.httpx.Client.request"
+    )
     mock_httpx_request.return_value = mock_response
 
     # Act
@@ -59,7 +60,9 @@ def test_api_client_get_not_found_returns_none(mocker):
     mock_response = mocker.Mock()
     mock_response.status_code = 404
 
-    mock_httpx_request = mocker.patch("wafrunner_cli.core.api_client.httpx.Client.request")
+    mock_httpx_request = mocker.patch(
+        "wafrunner_cli.core.api_client.httpx.Client.request"
+    )
     mock_httpx_request.return_value = mock_response
 
     # Act
@@ -69,7 +72,9 @@ def test_api_client_get_not_found_returns_none(mocker):
     # Assert
     assert result.status_code == 404
     # No need to assert json() as it might not be valid for 404
-    mock_httpx_request.assert_called_once_with("GET", "/not-found-endpoint", params=None)
+    mock_httpx_request.assert_called_once_with(
+        "GET", "/not-found-endpoint", params=None
+    )
 
 
 def test_api_client_post_success(mocker):
@@ -83,7 +88,7 @@ def test_api_client_post_success(mocker):
     )
     mock_response = httpx.Response(
         201, json={"status": "created"}, request=httpx.Request("POST", "")
-        )
+    )
     mock_request_method = mocker.patch(
         "wafrunner_cli.core.api_client.httpx.Client.request",
         return_value=mock_response,
@@ -116,10 +121,10 @@ def test_api_client_retries_on_server_error(mocker, status_code):
     # Simulate a 500 error, then a 200 success
     response_error = httpx.Response(
         status_code, json={"detail": "Server Error"}, request=httpx.Request("GET", "")
-        )
+    )
     response_200 = httpx.Response(
         200, json={"data": "finally success"}, request=httpx.Request("GET", "")
-        )
+    )
 
     mock_request_method = mocker.patch(
         "wafrunner_cli.core.api_client.httpx.Client.request",
@@ -157,5 +162,3 @@ def test_api_client_fails_after_all_retries(mocker):
     with pytest.raises(httpx.RequestError, match="API request failed after 5 retries"):
         api_client = ApiClient()
         api_client.get("/non-existent-endpoint")
-
-        
