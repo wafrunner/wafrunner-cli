@@ -37,6 +37,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install -r requirements-dev.txt
+        pip install -e .
 
     # Step 4: Lint with flake8
     # This checks for style issues and simple bugs. It will use the .flake8 config file.
