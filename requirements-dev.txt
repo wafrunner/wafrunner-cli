@@ -1,3 +1,24 @@
+# requirements-dev.txt
+
+# Core Development Tools
+black
+flake8
+flake8-bugbear
+flake8-commas
+pre-commit
+bandit
+
+# Testing
+pytest
+pytest-cov
+pytest-mock
+
+# Documentation (since you have mkdocs installed)
 mkdocs
 mkdocs-material
 mkdocstrings[python]
+
+# CLI Tooling (your project uses this)
+typer[all]
+
+mypy

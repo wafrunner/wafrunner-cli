@@ -54,7 +54,6 @@ htmlcov/
 
 # IDEs and editors
 .idea/                  # PyCharm
-.vscode/                # VS Code
 *.sublime-project       # Sublime Text
 *.sublime-workspace
 *.swp                   # Vim swap files

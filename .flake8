@@ -1,0 +1,10 @@
+[flake8]
+exclude =
+    .venv,
+    .git,
+    __pycache__,
+    build,
+    dist
+max-line-length = 88
+# Add the 'ignore' line to disable specific error codes
+ignore = C812, C819, W503

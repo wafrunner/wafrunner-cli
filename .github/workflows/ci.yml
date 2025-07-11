@@ -1,0 +1,8 @@
+# In your ci.yml, after the test step
+- name: Security Scan with Bandit
+  run: |
+    bandit -r . -c pyproject.toml -ll
+
+- name: Test with pytest and generate coverage report
+  run: |
+    pytest --cov=wafrunner_cli --cov-report=xml

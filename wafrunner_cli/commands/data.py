@@ -13,7 +13,9 @@ app = typer.Typer(help="Commands for downloading and managing research artifacts
 
 @app.command("get-graph")
 def get_graph(
-    vulnid: Optional[str] = typer.Option(None, "--vulnid", help="A specific vulnerability ID."),
+    vulnid: Optional[str] = typer.Option(
+        None, "--vulnid", help="A specific vulnerability ID."
+    ),
     cve_id: Optional[str] = typer.Option(None, "--cve-id", help="A specific CVE ID."),
     output_dir: Optional[Path] = typer.Option(
         None,
@@ -30,7 +32,10 @@ def get_graph(
     Download a vulnerability graph.
     """
     if (vulnid is None) == (cve_id is None):
-        print("[bold red]Error:[/bold red] Please provide exactly one of --vulnid or --cve-id.")
+        print(
+            "[bold red]Error:[/bold red] Please provide exactly one of --vulnid or "
+            "--cve-id."
+        )
         raise typer.Exit(code=1)
 
     try:
@@ -67,8 +72,10 @@ def get_graph(
         print(f"[bold red]API Error:[/bold red] {e}")
         if "403" in str(e):
             print(
-                "[bold yellow]Hint:[/bold yellow] A '403 Forbidden' error means the server understands your request but refuses to authorize it. "
-                "Please check if your API token has the required permissions (scopes) to access this endpoint."
+                "[bold yellow]Hint:[/bold yellow] A '403 Forbidden' error means the "
+                "server understands your request but refuses to authorize it. "
+                "Please check if your API token has the required permissions "
+                "(scopes) to access this endpoint."
             )
         raise typer.Exit(code=1)
     except httpx.RequestError:
@@ -78,7 +85,9 @@ def get_graph(
 
 @app.command("get-controls")
 def get_controls(
-    vulnid: Optional[str] = typer.Option(None, "--vulnid", help="A specific vulnerability ID."),
+    vulnid: Optional[str] = typer.Option(
+        None, "--vulnid", help="A specific vulnerability ID."
+    ),
     cve_id: Optional[str] = typer.Option(None, "--cve-id", help="A specific CVE ID."),
     output_dir: Optional[Path] = typer.Option(
         None,
@@ -95,7 +104,12 @@ def get_controls(
     Download security controls for a vulnerability.
     """
     if (vulnid is None) == (cve_id is None):
-        print("[bold red]Error:[/bold red] Please provide exactly one of --vulnid or --cve-id.")
+        print(
+            "[bold red]Error:[/bold red] Please provide exactly one of --vulnid or "
+            "--cve-id."
+        )
         raise typer.Exit(code=1)
 
-    print(f"Placeholder for 'data get-controls' with vulnid: {vulnid}, cve_id: {cve_id}")
+    print(
+        f"Placeholder for 'data get-controls' with vulnid: {vulnid}, cve_id: {cve_id}"
+    )

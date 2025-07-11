@@ -5,7 +5,7 @@ from prompt_toolkit import PromptSession
 from prompt_toolkit.history import FileHistory
 from typer import main as typer_main
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
-from prompt_toolkit.completion import NestedCompleter, FuzzyWordCompleter
+from prompt_toolkit.completion import NestedCompleter
 from rich import print
 from pathlib import Path
 
@@ -34,10 +34,14 @@ def _get_typer_completions(app: typer.Typer) -> dict:
         for param in signature.parameters.values():
             click_param, _ = typer_main.get_click_param(param)
             if isinstance(click_param, (typer_main.click.Option)):
-                opts.extend(opt for opt in click_param.opts if opt and opt.startswith('--'))
+                opts.extend(
+                    opt for opt in click_param.opts if opt and opt.startswith("--")
+                )
 
         # Filter out None and ensure correct structure for NestedCompleter
-        completions[command_info.name] = {opt: None for opt in opts if opt} if opts else {}
+        completions[command_info.name] = (
+            {opt: None for opt in opts if opt} if opts else {}
+        )
 
     return completions
 
@@ -74,7 +78,8 @@ def run_shell():
             args = shlex.split(text)
             app(args, prog_name="wafrunner", standalone_mode=False)
         except SystemExit:
-            # Typer/Click raises SystemExit on --help or errors, which we want to ignore to keep the shell running.
+            # Typer/Click raises SystemExit on --help or errors, which we want to
+            # ignore to keep the shell running.
             pass
         except Exception as e:
             print(f"[bold red]An unexpected error occurred: {e}[/bold red]")

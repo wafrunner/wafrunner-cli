@@ -14,7 +14,10 @@ def configure():
     config_manager = ConfigManager()
     try:
         config_manager.save_token(api_token)
-        print(f"[green]✔ Configuration saved successfully to {config_manager.config_file}[/green]")
+        print(
+            f"[green]✔ Configuration saved successfully to "
+            f"{config_manager.config_file}[/green]"
+        )
     except IOError as e:
         print(f"[bold red]Error:[/bold red] {e}")
         raise typer.Exit(code=1)
