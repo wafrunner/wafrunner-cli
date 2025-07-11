@@ -1,8 +1,74 @@
-# In your ci.yml, after the test step
-- name: Security Scan with Bandit
-  run: |
-    bandit -r . -c pyproject.toml -ll
+# .github/workflows/ci.yml
 
-- name: Test with pytest and generate coverage report
-  run: |
-    pytest --cov=wafrunner_cli --cov-report=xml
+name: Code Quality CI
+
+# This workflow runs on every push to 'main' and every Pull Request targeting 'main'
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # The main job that runs all our checks
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # Run jobs for a specific Python version.
+        # You can add more versions here, e.g., ["3.9", "3.10", "3.11"]
+        python-version: ["3.10"]
+
+    steps:
+    # Step 1: Check out the repository's code so the workflow can access it
+    - name: Check out repository
+      uses: actions/checkout@v4
+
+    # Step 2: Set up the specified version of Python
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    # Step 3: Install project dependencies
+    # It's good practice to upgrade pip first and install from both requirements files
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+
+    # Step 4: Lint with flake8
+    # This checks for style issues and simple bugs. It will use the .flake8 config file.
+    - name: Lint with flake8
+      run: |
+        flake8 . --count --show-source --statistics
+
+    # Step 5: Check formatting with black
+    # The --check flag makes black fail if any files need reformatting, without changing them.
+    - name: Check formatting with black
+      run: |
+        black --check .
+
+    # Step 6: Run security scan with Bandit
+    # This looks for common security vulnerabilities in the code.
+    - name: Security Scan with Bandit
+      run: |
+        bandit -r . -ll
+
+    # Step 7: Run tests with pytest and generate coverage report
+    # --cov specifies which directory to measure coverage for.
+    # --cov-report=xml creates the file that Codecov needs.
+    - name: Test with pytest and generate coverage report
+      run: |
+        pytest --cov=wafrunner_cli --cov-report=xml
+
+    # Step 8: Upload coverage report to Codecov
+    # This action finds the coverage.xml file and uploads it.
+    # It uses the secret token you added to the repository settings.
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        # Optional: fail the CI job if coverage drops. Good to enable later.
+        # fail_ci_if_error: true
