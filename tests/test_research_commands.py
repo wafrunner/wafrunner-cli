@@ -38,7 +38,8 @@ class TestResearchCommands(unittest.TestCase):
         self.assertIn("Found 1 vulnerability ID(s) to process.", result.stdout)
 
     @patch("wafrunner_cli.commands.research.lookup_ids")
-    def test_github_with_invalid_id(self, mock_lookup_ids):
+    @patch("wafrunner_cli.commands.research.ApiClient")
+    def test_github_with_invalid_id(self, MockApiClient, mock_lookup_ids):
         # Mock the lookup service to return None
         mock_lookup_ids.return_value = None
 
