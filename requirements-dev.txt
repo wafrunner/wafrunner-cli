@@ -7,18 +7,17 @@ flake8-bugbear
 flake8-commas
 pre-commit
 bandit
+mypy
 
 # Testing
 pytest
 pytest-cov
 pytest-mock
 
-# Documentation (since you have mkdocs installed)
+# Documentation
 mkdocs
 mkdocs-material
 mkdocstrings[python]
 
-# CLI Tooling (your project uses this)
+# CLI Tooling
 typer[all]
-
-mypy
