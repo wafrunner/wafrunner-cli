@@ -866,7 +866,8 @@ def init_graph(
                 # POST to /vulnerability.../initialise-exploit-graph
                 response = api_client.post(
                     f"/vulnerability_records/{vulnID}/actions/"
-                    "initialise-exploit-graph"
+                    "initialise-exploit-graph",
+                    json={},
                 )
                 result["status_code"] = response.status_code
                 if 200 <= response.status_code < 300:
@@ -990,6 +991,412 @@ def init_graph(
         raise typer.Exit(code=1)
 
 
+@app.command("refine-graph")
+def refine_graph(
+    collection: Optional[str] = typer.Option(
+        None,
+        "--collection",
+        "-c",
+        help="Name of the collection file containing vulnerability IDs.",
+    ),
+    identifier: Optional[str] = typer.Option(
+        None, "--id", "-i", help="A single vulnerability ID or CVE ID to process."
+    ),
+    max_workers: int = typer.Option(
+        16, "--max-workers", "-t", help="Number of worker threads."
+    ),
+    verbose: bool = typer.Option(
+        False, "--verbose", "-V", help="Show progress bar and verbose logs."
+    ),
+    log_dir: Optional[Path] = typer.Option(
+        None,
+        "--log-dir",
+        help="Directory to save the detailed JSON log file (default: ./run_logs)",
+    ),
+):
+    """
+    Trigger exploit graph refinement for vulnerabilities.
+
+    You must provide either --collection/-c or --id/-i.
+    """
+    console = Console()
+    if not collection and not identifier:
+        console.print(
+            "[bold red]Error:[/bold red] Please provide either a --collection or an "
+            "--id."
+        )
+        raise typer.Exit(code=1)
+    if collection and identifier:
+        console.print(
+            "[bold red]Error:[/bold red] Options --collection and --id are mutually "
+            "exclusive."
+        )
+        raise typer.Exit(code=1)
+
+    try:
+        config_mgr = ConfigManager()
+        api_client = ApiClient()
+        if identifier:
+            vuln_id = _resolve_identifier(identifier)
+            vuln_ids = [vuln_id] if vuln_id else []
+        else:
+            identifiers = get_vuln_identifiers_from_collection(collection, config_mgr)
+            vuln_ids = [item["vuln_id"] for item in identifiers]
+
+        if not vuln_ids:
+            console.print(
+                "[bold red]Error:[/bold red] No valid vulnerability IDs found to "
+                "process."
+            )
+            raise typer.Exit(code=1)
+
+        total_vulns = len(vuln_ids)
+        if not log_dir:
+            log_dir = Path("./run_logs")
+        log_dir.mkdir(parents=True, exist_ok=True)
+
+        console.print(f"[*] Found {total_vulns} vulnerability IDs to process.")
+        console.print(f"[*] Using {max_workers} worker threads.")
+        console.print(f"[*] Detailed log file will be saved in: {log_dir}")
+
+        def process_vuln_for_graph_refinement(vulnID):
+            result = {
+                "vulnID": vulnID,
+                "status": "processed",
+                "error": None,
+                "status_code": None,
+            }
+            try:
+                # POST to /vulnerability.../refine-exploit-graph
+                response = api_client.post(
+                    f"/vulnerability_records/{vulnID}/actions/" "refine-exploit-graph",
+                    json={},
+                )
+                result["status_code"] = response.status_code
+                if 200 <= response.status_code < 300:
+                    result["status"] = "success"
+                else:
+                    result["status"] = "failed"
+                    result["error"] = f"HTTP {response.status_code}: {response.text}"
+                    if verbose:
+                        console.print(
+                            f"[red]Failed to trigger exploit graph refinement for {vulnID}: "
+                            f"{result['error']}[/red]"
+                        )
+            except Exception as e:
+                if isinstance(e, AuthenticationError):
+                    raise
+                result["status"] = "failed"
+                result["error"] = str(e)
+                if verbose:
+                    console.print(f"[red]Exception for {vulnID}: {e}[/red]")
+            return result
+
+        all_results = []
+        total_success = 0
+        total_failed = 0
+        processed_vuln_count = 0
+
+        start_time = time.time()
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            TextColumn("•"),
+            TextColumn("•"),
+            TimeRemainingColumn(),
+            console=console,
+            transient=False,
+        ) as progress:
+            task = progress.add_task(
+                f"[green]Processing {total_vulns} VulnIDs...", total=total_vulns
+            )
+            with concurrent.futures.ThreadPoolExecutor(
+                max_workers=max_workers
+            ) as executor:
+                future_to_vulnid = {
+                    executor.submit(process_vuln_for_graph_refinement, vuln_id): vuln_id
+                    for vuln_id in vuln_ids
+                }
+                for future in concurrent.futures.as_completed(future_to_vulnid):
+                    vuln_id = future_to_vulnid[future]
+                    try:
+                        result = future.result()
+                        all_results.append(result)
+                        processed_vuln_count += 1
+                        if result.get("status") == "success":
+                            total_success += 1
+                        else:
+                            total_failed += 1
+                    except Exception as exc:
+                        if isinstance(exc, AuthenticationError):
+                            raise
+                        all_results.append(
+                            {
+                                "vulnID": vuln_id,
+                                "status": "thread_exception",
+                                "error": str(exc),
+                            }
+                        )
+                        total_failed += 1
+                    progress.advance(task)
+
+        end_time = time.time()
+        duration = end_time - start_time
+        rate = processed_vuln_count / duration if duration > 0 else 0
+
+        console.print("\n--- Processing Summary ---")
+        console.print(f"Processed {processed_vuln_count}/{total_vulns} vulnIDs.")
+        console.print(f"Successful Triggers: {total_success}")
+        console.print(f"Failed Triggers:     {total_failed}")
+        console.print(
+            f"Total processing time: {duration:.2f} seconds ({rate:.2f} vulnIDs/sec)"
+        )
+
+        # --- Write Detailed Log File ---
+        log_filename = (
+            f"exploit_graph_refinement_log_{time.strftime('%Y%m%d-%H%M%S')}.json"
+        )
+        log_filepath = log_dir / log_filename
+        log_data = {
+            "run_timestamp": datetime.now(timezone.utc).isoformat(),
+            "threads": max_workers,
+            "input_collection": collection,
+            "input_vulnid": identifier,
+            "summary": {
+                "processed_vulnIDs": processed_vuln_count,
+                "total_vulnIDs_in_collection": total_vulns,
+                "total_success": total_success,
+                "total_failed": total_failed,
+                "processing_time_seconds": round(duration, 2),
+                "processing_rate_vulnIDs_per_sec": round(rate, 2),
+            },
+            "details_per_vulnID": all_results,
+        }
+        try:
+            with log_filepath.open("w", encoding="utf-8") as f_log:
+                json.dump(log_data, f_log, indent=4)
+            console.print(f"[*] Detailed results saved to: {log_filepath}")
+        except Exception as e:
+            console.print(
+                f"\n[red]Error writing detailed log file to {log_dir}: {e}[/red]"
+            )
+
+        if total_failed > 0:
+            console.print(
+                "\n[bold yellow]Completed with errors. Check logs above and the "
+                "detailed log file.[/bold yellow]"
+            )
+
+    except AuthenticationError as e:
+        console.print(f"\n[bold red]API Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command("refine-graph")
+def refine_graph(
+    collection: Optional[str] = typer.Option(
+        None,
+        "--collection",
+        "-c",
+        help="Name of the collection file containing vulnerability IDs.",
+    ),
+    identifier: Optional[str] = typer.Option(
+        None, "--id", "-i", help="A single vulnerability ID or CVE ID to process."
+    ),
+    max_workers: int = typer.Option(
+        16, "--max-workers", "-t", help="Number of worker threads."
+    ),
+    verbose: bool = typer.Option(
+        False, "--verbose", "-V", help="Show progress bar and verbose logs."
+    ),
+    log_dir: Optional[Path] = typer.Option(
+        None,
+        "--log-dir",
+        help="Directory to save the detailed JSON log file (default: ./run_logs)",
+    ),
+):
+    """
+    Trigger exploit graph refinement for vulnerabilities.
+
+    You must provide either --collection/-c or --id/-i.
+    """
+    console = Console()
+    if not collection and not identifier:
+        console.print(
+            "[bold red]Error:[/bold red] Please provide either a --collection or an "
+            "--id."
+        )
+        raise typer.Exit(code=1)
+    if collection and identifier:
+        console.print(
+            "[bold red]Error:[/bold red] Options --collection and --id are mutually "
+            "exclusive."
+        )
+        raise typer.Exit(code=1)
+
+    try:
+        config_mgr = ConfigManager()
+        api_client = ApiClient()
+        if identifier:
+            vuln_id = _resolve_identifier(identifier)
+            vuln_ids = [vuln_id] if vuln_id else []
+        else:
+            identifiers = get_vuln_identifiers_from_collection(collection, config_mgr)
+            vuln_ids = [item["vuln_id"] for item in identifiers]
+
+        if not vuln_ids:
+            console.print(
+                "[bold red]Error:[/bold red] No valid vulnerability IDs found to "
+                "process."
+            )
+            raise typer.Exit(code=1)
+
+        total_vulns = len(vuln_ids)
+        if not log_dir:
+            log_dir = Path("./run_logs")
+        log_dir.mkdir(parents=True, exist_ok=True)
+
+        console.print(f"[*] Found {total_vulns} vulnerability IDs to process.")
+        console.print(f"[*] Using {max_workers} worker threads.")
+        console.print(f"[*] Detailed log file will be saved in: {log_dir}")
+
+        def process_vuln_for_graph_refinement(vulnID):
+            result = {
+                "vulnID": vulnID,
+                "status": "processed",
+                "error": None,
+                "status_code": None,
+            }
+            try:
+                # POST to /vulnerability.../refine-exploit-graph
+                response = api_client.post(
+                    f"/vulnerability_records/{vulnID}/actions/" "refine-exploit-graph",
+                    json={},
+                )
+                result["status_code"] = response.status_code
+                if 200 <= response.status_code < 300:
+                    result["status"] = "success"
+                else:
+                    result["status"] = "failed"
+                    result["error"] = f"HTTP {response.status_code}: {response.text}"
+                    if verbose:
+                        console.print(
+                            f"[red]Failed to trigger exploit graph refinement for {vulnID}: "
+                            f"{result['error']}[/red]"
+                        )
+            except Exception as e:
+                if isinstance(e, AuthenticationError):
+                    raise
+                result["status"] = "failed"
+                result["error"] = str(e)
+                if verbose:
+                    console.print(f"[red]Exception for {vulnID}: {e}[/red]")
+            return result
+
+        all_results = []
+        total_success = 0
+        total_failed = 0
+        processed_vuln_count = 0
+
+        start_time = time.time()
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            TextColumn("•"),
+            TextColumn("•"),
+            TimeRemainingColumn(),
+            console=console,
+            transient=False,
+        ) as progress:
+            task = progress.add_task(
+                f"[green]Processing {total_vulns} VulnIDs...", total=total_vulns
+            )
+            with concurrent.futures.ThreadPoolExecutor(
+                max_workers=max_workers
+            ) as executor:
+                future_to_vulnid = {
+                    executor.submit(process_vuln_for_graph_refinement, vuln_id): vuln_id
+                    for vuln_id in vuln_ids
+                }
+                for future in concurrent.futures.as_completed(future_to_vulnid):
+                    vuln_id = future_to_vulnid[future]
+                    try:
+                        result = future.result()
+                        all_results.append(result)
+                        processed_vuln_count += 1
+                        if result.get("status") == "success":
+                            total_success += 1
+                        else:
+                            total_failed += 1
+                    except Exception as exc:
+                        if isinstance(exc, AuthenticationError):
+                            raise
+                        all_results.append(
+                            {
+                                "vulnID": vuln_id,
+                                "status": "thread_exception",
+                                "error": str(exc),
+                            }
+                        )
+                        total_failed += 1
+                    progress.advance(task)
+
+        end_time = time.time()
+        duration = end_time - start_time
+        rate = processed_vuln_count / duration if duration > 0 else 0
+
+        console.print("\n--- Processing Summary ---")
+        console.print(f"Processed {processed_vuln_count}/{total_vulns} vulnIDs.")
+        console.print(f"Successful Triggers: {total_success}")
+        console.print(f"Failed Triggers:     {total_failed}")
+        console.print(
+            f"Total processing time: {duration:.2f} seconds ({rate:.2f} vulnIDs/sec)"
+        )
+
+        # --- Write Detailed Log File ---
+        log_filename = (
+            f"exploit_graph_refinement_log_{time.strftime('%Y%m%d-%H%M%S')}.json"
+        )
+        log_filepath = log_dir / log_filename
+        log_data = {
+            "run_timestamp": datetime.now(timezone.utc).isoformat(),
+            "threads": max_workers,
+            "input_collection": collection,
+            "input_vulnid": identifier,
+            "summary": {
+                "processed_vulnIDs": processed_vuln_count,
+                "total_vulnIDs_in_collection": total_vulns,
+                "total_success": total_success,
+                "total_failed": total_failed,
+                "processing_time_seconds": round(duration, 2),
+                "processing_rate_vulnIDs_per_sec": round(rate, 2),
+            },
+            "details_per_vulnID": all_results,
+        }
+        try:
+            with log_filepath.open("w", encoding="utf-8") as f_log:
+                json.dump(log_data, f_log, indent=4)
+            console.print(f"[*] Detailed results saved to: {log_filepath}")
+        except Exception as e:
+            console.print(
+                f"\n[red]Error writing detailed log file to {log_dir}: {e}[/red]"
+            )
+
+        if total_failed > 0:
+            console.print(
+                "\n[bold yellow]Completed with errors. Check logs above and the "
+                "detailed log file.[/bold yellow]"
+            )
+
+    except AuthenticationError as e:
+        console.print(f"\n[bold red]API Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
 @app.command()
 def links(
     collection: Optional[str] = typer.Option(
@@ -1003,7 +1410,7 @@ def links(
     ),
 ):
     """
-    Fetches and displays data source links for vulnerabilities.
+    Fetches and displays data source links and their statuses for vulnerabilities.
     """
     console = Console()
     if not collection and not identifier:
@@ -1049,7 +1456,7 @@ def links(
 
                 # Fetch data sources
                 response = api_client.get(
-                    f"/vulnerability_records/{vuln_id}/data_sources/"
+                    f"/vulnerability_records/{vuln_id}/data_sources"
                 )
 
                 if response.status_code == 404:
@@ -1072,17 +1479,38 @@ def links(
                 # Sort data sources
                 data_sources.sort(key=lambda x: x.get("testCategory") != "webExploit")
 
-                table = Table(title=f"Data Sources for {cve_id} - {vuln_id}")
-                table.add_column("URL", style="cyan", no_wrap=False, width=50)
-                table.add_column("CVEs", style="magenta", no_wrap=True)
-                table.add_column("Test Category", style="green")
+                table = Table(
+                    title=f"Data Sources for {cve_id} - {vuln_id}", show_lines=True
+                )
+                table.add_column("URL", style="cyan", no_wrap=False, width=45)
+                table.add_column("linkID", style="dim", no_wrap=True, width=38)
+                table.add_column("Scraped", style="green", width=10)
+                table.add_column("Size (KB)", style="magenta", justify="right")
+                table.add_column("Classified", style="blue", width=10)
+                table.add_column("Analysed", style="yellow", width=10)
+                table.add_column("Test Category", style="green", width=15)
 
                 for source in data_sources:
                     url = source.get("url", "")
-                    cves = source.get("cves", [])
-                    test_category = source.get("testCategory", "")
-                    classifier_status = source.get("classifierStatus", "")
+                    link_id = source.get("linkID", "N/A")
                     scraped_status = source.get("scrapedStatus", "")
+                    s3_file_size = source.get("s3FileSize")
+                    classifier_status = source.get("classifierStatus", "")
+                    analysed1_status = source.get("analysed1Status", "")
+                    test_category = source.get("testCategory", "")
+
+                    if scraped_status == "error":
+                        scraped_status = "[red]error[/red]"
+                    if classifier_status == "error":
+                        classifier_status = "[red]error[/red]"
+                    if analysed1_status == "error":
+                        analysed1_status = "[red]error[/red]"
+
+                    s3_file_size_kb = "N/A"
+                    if isinstance(s3_file_size, (int, float)) and s3_file_size > 0:
+                        s3_file_size_kb = f"{s3_file_size / 1024:.1f}"
+                    elif s3_file_size == 0:
+                        s3_file_size_kb = "0.0"
 
                     style = ""
                     if test_category == "webExploit":
@@ -1092,10 +1520,7 @@ def links(
                     elif test_category == "Non-test":
                         style = "bold grey"
                     elif not test_category:
-                        if (
-                            classifier_status == "complete"
-                            or classifier_status == "error"
-                        ):
+                        if classifier_status in ("complete", "error"):
                             style = "amber"
                         elif scraped_status == "complete":
                             style = "italic white"
@@ -1104,13 +1529,13 @@ def links(
                         else:
                             style = "italic grey"
 
-                    cve_display = ", ".join(cves[:1])
-                    if len(cves) > 1:
-                        cve_display += ", ..."
-
                     table.add_row(
                         f"[{style}]{url}[/{style}]",
-                        cve_display,
+                        link_id,
+                        scraped_status,
+                        s3_file_size_kb,
+                        classifier_status,
+                        analysed1_status,
                         test_category,
                     )
 
