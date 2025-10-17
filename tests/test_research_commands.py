@@ -140,6 +140,116 @@ class TestResearchCommands(unittest.TestCase):
             "Could not resolve identifier: invalid-id", result.stdout,
         )
 
+    @patch("wafrunner_cli.commands.research.lookup_ids")
+    @patch("wafrunner_cli.commands.research.ApiClient")
+    def test_update_source_with_cve_id_success(self, MockApiClient, mock_lookup_ids):
+        # Mock the lookup service to return a valid response
+        mock_lookup_ids.return_value = {
+            "cve_id": "CVE-2024-1234",
+            "vuln_id": "vuln-1234",
+        }
+
+        # Mock the API client to return success
+        mock_api_instance = MockApiClient.return_value
+        mock_api_instance.post.return_value.status_code = 202
+
+        # Run the command with a CVE ID
+        result = self.runner.invoke(
+            app, ["research", "update-source", "--id", "CVE-2024-1234"],
+        )
+        self.assertEqual(result.exit_code, 0)
+        self.assertIn("Found 1 vulnerability IDs to process.", result.stdout)
+        self.assertIn("Successful Updates: 1", result.stdout)
+        mock_api_instance.post.assert_called_once_with(
+            "/vulnerability_records/vuln-1234/actions/update-from-source",
+            json={},
+        )
+
+    @patch("wafrunner_cli.commands.research.lookup_ids")
+    @patch("wafrunner_cli.commands.research.ApiClient")
+    def test_update_source_with_vuln_id_success(self, MockApiClient, mock_lookup_ids):
+        # Mock the lookup service to return a valid response for vulnID
+        mock_lookup_ids.return_value = {
+            "vuln_id": "1d4f8624-8acf-4c57-ab06-2b7bdf93ca36",
+        }
+
+        # Mock the API client to return success
+        mock_api_instance = MockApiClient.return_value
+        mock_api_instance.post.return_value.status_code = 202
+
+        # Run the command with a vulnID
+        result = self.runner.invoke(
+            app,
+            ["research", "update-source", "--id", "1d4f8624-8acf-4c57-ab06-2b7bdf93ca36"],
+        )
+        self.assertEqual(result.exit_code, 0)
+        self.assertIn("Found 1 vulnerability IDs to process.", result.stdout)
+        self.assertIn("Successful Updates: 1", result.stdout)
+        mock_api_instance.post.assert_called_once_with(
+            "/vulnerability_records/1d4f8624-8acf-4c57-ab06-2b7bdf93ca36/actions/"
+            "update-from-source",
+            json={},
+        )
+
+    @patch("wafrunner_cli.commands.research.lookup_ids")
+    @patch("wafrunner_cli.commands.research.ApiClient")
+    def test_update_source_with_cve_id_failure(self, MockApiClient, mock_lookup_ids):
+        # Mock the lookup service to return a valid response
+        mock_lookup_ids.return_value = {
+            "cve_id": "CVE-2024-1234",
+            "vuln_id": "vuln-1234",
+        }
+
+        # Mock the API client to return a failure
+        mock_api_instance = MockApiClient.return_value
+        mock_api_instance.post.return_value.status_code = 400
+        mock_api_instance.post.return_value.text = "Bad Request"
+
+        # Run the command with a CVE ID
+        result = self.runner.invoke(
+            app, ["research", "update-source", "--id", "CVE-2024-1234", "--verbose"],
+        )
+        self.assertEqual(result.exit_code, 0)
+        self.assertIn("Found 1 vulnerability IDs to process.", result.stdout)
+        self.assertIn("Failed Updates:     1", result.stdout)
+
+    @patch("wafrunner_cli.commands.research.lookup_ids")
+    @patch("wafrunner_cli.commands.research.ApiClient")
+    def test_update_source_with_invalid_id(self, MockApiClient, mock_lookup_ids):
+        # Mock the lookup service to return None for invalid ID
+        mock_lookup_ids.return_value = None
+
+        # Run the command with an invalid ID
+        result = self.runner.invoke(
+            app, ["research", "update-source", "--id", "invalid-id"],
+        )
+        self.assertEqual(result.exit_code, 1)
+        self.assertIn(
+            "Could not resolve identifier: invalid-id", result.stdout,
+        )
+
+    @patch("wafrunner_cli.commands.research.lookup_ids")
+    @patch("wafrunner_cli.commands.research.ApiClient")
+    def test_update_source_server_error(self, MockApiClient, mock_lookup_ids):
+        # Mock the lookup service to return a valid response
+        mock_lookup_ids.return_value = {
+            "cve_id": "CVE-2024-1234",
+            "vuln_id": "vuln-1234",
+        }
+
+        # Mock the API client to return server error
+        mock_api_instance = MockApiClient.return_value
+        mock_api_instance.post.return_value.status_code = 500
+        mock_api_instance.post.return_value.text = "Internal Server Error"
+
+        # Run the command with a CVE ID
+        result = self.runner.invoke(
+            app, ["research", "update-source", "--id", "CVE-2024-1234", "--verbose"],
+        )
+        self.assertEqual(result.exit_code, 0)
+        self.assertIn("Found 1 vulnerability IDs to process.", result.stdout)
+        self.assertIn("Failed Updates:     1", result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

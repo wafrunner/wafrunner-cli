@@ -1194,6 +1194,234 @@ def refine_graph(
         raise typer.Exit(code=1)
 
 
+@app.command("update-source")
+def update_source(
+    collection: Optional[str] = typer.Option(
+        None,
+        "--collection",
+        "-c",
+        help="Name of the collection file containing vulnerability IDs.",
+    ),
+    identifier: Optional[str] = typer.Option(
+        None,
+        "--id",
+        "-i",
+        help="A single vulnerability ID (CVE-XXXX-YYYY or vulnID UUID) to process."
+    ),
+    max_workers: int = typer.Option(
+        16, "--max-workers", "-t", help="Number of worker threads."
+    ),
+    verbose: bool = typer.Option(
+        False, "--verbose", "-V", help="Show progress bar and verbose logs."
+    ),
+    log_dir: Optional[Path] = typer.Option(
+        None,
+        "--log-dir",
+        help="Directory to save the detailed JSON log file (default: ./run_logs)",
+    ),
+):
+    """
+    Trigger vulnerability updates from NIST API source.
+
+    You must provide either --collection/-c or --id/-i.
+
+    The --id parameter accepts both CVE IDs (CVE-XXXX-YYYY) and vulnID UUIDs.
+    Examples:
+      wafrunner research update-source -i CVE-2024-1234
+      wafrunner research update-source -i 1d4f8624-8acf-4c57-ab06-2b7bdf93ca36
+      wafrunner research update-source -c my-vulnerabilities
+    """
+    console = Console()
+    if not collection and not identifier:
+        console.print(
+            "[bold red]Error:[/bold red] Please provide either a --collection or an "
+            "--id."
+        )
+        raise typer.Exit(code=1)
+    if collection and identifier:
+        console.print(
+            "[bold red]Error:[/bold red] Options --collection and --id are mutually "
+            "exclusive."
+        )
+        raise typer.Exit(code=1)
+
+    try:
+        config_mgr = ConfigManager()
+        api_client = ApiClient()
+
+        if identifier:
+            vuln_id = _resolve_identifier(identifier)
+            vuln_ids = [vuln_id] if vuln_id else []
+        else:
+            identifiers = get_vuln_identifiers_from_collection(collection, config_mgr)
+            vuln_ids = [item["vuln_id"] for item in identifiers]
+
+        if not vuln_ids:
+            console.print(
+                "[bold red]Error:[/bold red] No valid vulnerability IDs found to "
+                "process."
+            )
+            raise typer.Exit(code=1)
+
+        total_vulns = len(vuln_ids)
+        if not log_dir:
+            log_dir = Path("./run_logs")
+        log_dir.mkdir(parents=True, exist_ok=True)
+
+        console.print(f"[*] Found {total_vulns} vulnerability IDs to process.")
+        console.print(f"[*] Using {max_workers} worker threads.")
+        console.print(f"[*] Detailed log file will be saved in: {log_dir}")
+
+        def process_vuln_for_update_source(vulnID):
+            result = {
+                "vulnID": vulnID,
+                "status": "processed",
+                "error": None,
+                "status_code": None,
+            }
+            try:
+                # POST to /vulnerability.../update-from-source
+                response = api_client.post(
+                    f"/vulnerability_records/{vulnID}/actions/update-from-source",
+                    json={},  # Empty body as per Lambda function
+                )
+                result["status_code"] = response.status_code
+                if response.status_code == 202:
+                    result["status"] = "success"
+                elif response.status_code == 400:
+                    result["status"] = "failed"
+                    result["error"] = "Invalid vulnID or bad request"
+                elif response.status_code == 500:
+                    result["status"] = "failed"
+                    result["error"] = "Server error or queue configuration issue"
+                else:
+                    result["status"] = "failed"
+                    result["error"] = f"HTTP {response.status_code}: {response.text}"
+                    if verbose:
+                        console.print(
+                            f"[red]Failed to trigger update from source for {vulnID}: "
+                            f"{result['error']}[/red]"
+                        )
+            except Exception as e:
+                if isinstance(e, AuthenticationError):
+                    raise
+                result["status"] = "failed"
+                result["error"] = str(e)
+                if verbose:
+                    console.print(f"[red]Exception for {vulnID}: {e}[/red]")
+            return result
+
+        all_results = []
+        total_success = 0
+        total_failed = 0
+        processed_vuln_count = 0
+
+        start_time = time.time()
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            TextColumn("•"),
+            TextColumn("•"),
+            TimeRemainingColumn(),
+            console=console,
+            transient=False,
+        ) as progress:
+            task = progress.add_task(
+                f"[green]Processing {total_vulns} VulnIDs...", total=total_vulns
+            )
+            with concurrent.futures.ThreadPoolExecutor(
+                max_workers=max_workers
+            ) as executor:
+                future_to_vulnid = {
+                    executor.submit(process_vuln_for_update_source, vuln_id): vuln_id
+                    for vuln_id in vuln_ids
+                }
+                for future in concurrent.futures.as_completed(future_to_vulnid):
+                    vuln_id = future_to_vulnid[future]
+                    try:
+                        result = future.result()
+                        all_results.append(result)
+                        processed_vuln_count += 1
+                        if result.get("status") == "success":
+                            total_success += 1
+                        else:
+                            total_failed += 1
+                    except Exception as exc:
+                        if isinstance(exc, AuthenticationError):
+                            raise
+                        all_results.append(
+                            {
+                                "vulnID": vuln_id,
+                                "status": "thread_exception",
+                                "error": str(exc),
+                            }
+                        )
+                        total_failed += 1
+                    progress.advance(task)
+
+        end_time = time.time()
+        duration = end_time - start_time
+        rate = processed_vuln_count / duration if duration > 0 else 0
+
+        console.print("\n--- Processing Summary ---")
+        console.print(f"Processed {processed_vuln_count}/{total_vulns} vulnIDs.")
+        console.print(f"Successful Updates: {total_success}")
+        console.print(f"Failed Updates:     {total_failed}")
+        console.print(
+            f"Total processing time: {duration:.2f} seconds ({rate:.2f} vulnIDs/sec)"
+        )
+
+        # --- Write Detailed Log File ---
+        log_filename = (
+            f"update_source_log_{time.strftime('%Y%m%d-%H%M%S')}.json"
+        )
+        log_filepath = log_dir / log_filename
+        log_data = {
+            "run_timestamp": datetime.now(timezone.utc).isoformat(),
+            "threads": max_workers,
+            "input_collection": collection,
+            "input_vulnid": identifier,
+            "summary": {
+                "processed_vulnIDs": processed_vuln_count,
+                "total_vulnIDs_in_collection": total_vulns,
+                "total_success": total_success,
+                "total_failed": total_failed,
+                "processing_time_seconds": round(duration, 2),
+                "processing_rate_vulnIDs_per_sec": round(rate, 2),
+            },
+            "details_per_vulnID": all_results,
+        }
+        try:
+            with log_filepath.open("w", encoding="utf-8") as f_log:
+                json.dump(log_data, f_log, indent=4)
+            console.print(f"[*] Detailed results saved to: {log_filepath}")
+        except Exception as e:
+            console.print(
+                f"\n[red]Error writing detailed log file to {log_dir}: {e}[/red]"
+            )
+
+        if total_failed > 0:
+            console.print(
+                "\n[bold yellow]Completed with errors. Check logs above and the "
+                "detailed log file.[/bold yellow]"
+            )
+
+    except AuthenticationError as e:
+        console.print(f"\n[bold red]API Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+    except httpx.RequestError:
+        console.print(
+            "\n[bold red]Network Error:[/bold red] A network error occurred while "
+            "communicating with the API."
+        )
+        raise typer.Exit(code=1)
+    except Exception as e:
+        console.print(f"\n[bold red]An unexpected error occurred:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
 @app.command()
 def links(
     collection: Optional[str] = typer.Option(
