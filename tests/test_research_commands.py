@@ -79,7 +79,7 @@ class TestResearchCommands(unittest.TestCase):
         )
         self.assertEqual(result.exit_code, 0, result.stdout)
         self.assertIn(
-            "Found 1 vulnerability ID(s) to process.", result.stdout,
+            "Found 1 vulnerability IDs to process.", result.stdout,
         )
         self.assertIn("Successful Triggers: 1", result.stdout)
         mock_api_instance.post.assert_called_once_with(
@@ -114,7 +114,7 @@ class TestResearchCommands(unittest.TestCase):
         )
         self.assertEqual(result.exit_code, 0, result.stdout)
         self.assertIn(
-            "Found 1 vulnerability ID(s) to process.", result.stdout,
+            "Found 1 vulnerability IDs to process.", result.stdout,
         )
         self.assertIn("Failed Triggers:     1", result.stdout)
         self.assertIn(
