@@ -1,7 +1,9 @@
 import json
 import time
+import random
+from functools import partial
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Callable, Any
 from datetime import datetime, timezone
 import concurrent.futures
 
@@ -21,6 +23,102 @@ from rich.table import Table
 from wafrunner_cli.core.api_client import ApiClient
 from wafrunner_cli.core.exceptions import AuthenticationError
 from wafrunner_cli.core.lookup_service import lookup_ids
+
+
+# --- Smart Concurrency Utilities ---
+def calculate_optimal_workers(collection_size: int, base_workers: int = 4) -> int:
+    """
+    Calculate optimal worker count based on collection size.
+
+    Args:
+        collection_size: Number of items to process
+        base_workers: Base number of workers (default: 4)
+
+    Returns:
+        Optimal number of workers (2-8 range)
+    """
+    if collection_size <= 5:
+        return 2
+    elif collection_size <= 20:
+        return 3
+    elif collection_size <= 50:
+        return base_workers
+    elif collection_size <= 100:
+        return min(6, base_workers + 2)
+    elif collection_size <= 200:
+        return min(8, base_workers + 4)
+    else:
+        return 8  # Cap at 8 for very large collections
+
+
+def retry_with_backoff(
+    func: Callable[[], Any],
+    max_retries: int = 3,
+    base_delay: float = 1.0,
+    max_delay: float = 30.0
+) -> Any:
+    """
+    Retry failed requests with exponential backoff and jitter.
+
+    Args:
+        func: Function to retry
+        max_retries: Maximum number of retry attempts
+        base_delay: Base delay in seconds
+        max_delay: Maximum delay in seconds
+
+    Returns:
+        Result of the function call
+
+    Raises:
+        Last exception if all retries fail
+    """
+    last_exception = None
+
+    for attempt in range(max_retries + 1):
+        try:
+            return func()
+        except httpx.HTTPStatusError as e:
+            last_exception = e
+            if e.response.status_code == 500 and attempt < max_retries:
+                # Calculate delay with exponential backoff and jitter
+                delay = min(
+                    base_delay * (2 ** attempt) + random.uniform(0, 1),
+                    max_delay
+                )
+                time.sleep(delay)
+                continue
+            # For non-500 errors or final attempt, re-raise immediately
+            raise
+        except Exception as e:
+            last_exception = e
+            if attempt < max_retries:
+                # For other exceptions, use shorter delay
+                delay = min(base_delay * (1.5 ** attempt), max_delay / 2)
+                time.sleep(delay)
+                continue
+            raise
+
+    # This should never be reached, but just in case
+    if last_exception:
+        raise last_exception
+
+
+def create_worker_with_retry(api_client: ApiClient, max_retries: int = 3):
+    """
+    Create a worker function that includes retry logic for API calls.
+
+    Args:
+        api_client: The API client instance
+        max_retries: Maximum number of retries for 500 errors
+
+    Returns:
+        A function that wraps API calls with retry logic
+    """
+    def worker_with_retry(operation_func: Callable[[], Any]) -> Any:
+        """Execute an operation with retry logic."""
+        return retry_with_backoff(operation_func, max_retries)
+
+    return worker_with_retry
 
 
 # --- Config Manager (for data dir only) ---
@@ -145,7 +243,7 @@ def github(
         help="Force a new search even if a completed search already exists.",
     ),
     max_workers: int = typer.Option(
-        10,
+        4,
         "--max-workers",
         help="Max number of parallel workers for large collections.",
     ),
@@ -183,6 +281,15 @@ def github(
             )
             raise typer.Exit(code=1)
 
+        # Calculate optimal worker count based on collection size
+        optimal_workers = calculate_optimal_workers(len(vuln_ids), max_workers)
+        if optimal_workers != max_workers:
+            console.print(
+                f"[*] Adjusted worker count from {max_workers} to {optimal_workers} "
+                f"based on collection size ({len(vuln_ids)} items)"
+            )
+            max_workers = optimal_workers
+
         console.print(f"Found {len(vuln_ids)} vulnerability ID(s) to process.")
         if force:
             console.print(
@@ -197,7 +304,10 @@ def github(
         def process_vuln(current_vuln_id):
             nonlocal skipped, failed, triggered
             try:
-                response = api_client.get(f"/vulnerability_records/{current_vuln_id}")
+                # Use retry logic for the GET request
+                response = retry_with_backoff(
+                    lambda: api_client.get(f"/vulnerability_records/{current_vuln_id}")
+                )
             except AuthenticationError as e:
                 raise e  # Re-raise to be caught by the main handler
             except Exception as e:
@@ -237,9 +347,12 @@ def github(
                     return
 
             try:
-                post_response = api_client.post(
-                    f"/vulnerability_records/{current_vuln_id}/actions/search",
-                    json={"searchType": "github"},
+                # Use retry logic for the POST request
+                post_response = retry_with_backoff(
+                    lambda: api_client.post(
+                        f"/vulnerability_records/{current_vuln_id}/actions/search",
+                        json={"searchType": "github"},
+                    )
                 )
             except Exception as e:
                 console.print(
@@ -511,7 +624,7 @@ def classify(
         False, "--retry", "-r", help="Trigger classifier ONLY if status is 'error'."
     ),
     max_workers: int = typer.Option(
-        16, "--max-workers", "-t", help="Number of worker threads."
+        4, "--max-workers", "-t", help="Number of worker threads."
     ),
     verbose: bool = typer.Option(
         False, "--verbose", "-V", help="Show progress bar and verbose logs."
@@ -570,6 +683,15 @@ def classify(
             log_dir = Path("./run_logs")
         log_dir.mkdir(parents=True, exist_ok=True)
 
+        # Calculate optimal worker count based on collection size
+        optimal_workers = calculate_optimal_workers(total_vulns, max_workers)
+        if optimal_workers != max_workers:
+            console.print(
+                f"[*] Adjusted worker count from {max_workers} to {optimal_workers} "
+                f"based on collection size ({total_vulns} items)"
+            )
+            max_workers = optimal_workers
+
         console.print(f"[*] Found {total_vulns} vulnerability IDs to process.")
         console.print(f"[*] Mode: {mode_str}")
         console.print(f"[*] Using {max_workers} worker threads.")
@@ -592,8 +714,10 @@ def classify(
             # --- API GET data sources ---
             try:
                 # Use the same headers as the example script (handled by ApiClient)
-                response = api_client.get(
-                    f"/vulnerability_records/{vulnID}/data_sources"
+                response = retry_with_backoff(
+                    lambda: api_client.get(
+                        f"/vulnerability_records/{vulnID}/data_sources"
+                    )
                 )
                 if (
                     response.status_code == 204
@@ -643,12 +767,13 @@ def classify(
 
                 # --- API POST trigger classify ---
                 try:
-                    post_response = api_client.post(
-                        (
+                    post_response = retry_with_backoff(
+                        partial(
+                            api_client.post,
                             f"/vulnerability_records/{vulnID}/data_sources/"
-                            f"{linkID_value}/actions/classify"
-                        ),
-                        json={},  # Always send an empty JSON body
+                            f"{linkID_value}/actions/classify",
+                            json={}
+                        )
                     )
                     if 200 <= post_response.status_code < 300:
                         results["triggered_ok"].append(linkID_value)
@@ -799,7 +924,7 @@ def init_graph(
         None, "--id", "-i", help="A single vulnerability ID or CVE ID to process."
     ),
     max_workers: int = typer.Option(
-        16, "--max-workers", "-t", help="Number of worker threads."
+        4, "--max-workers", "-t", help="Number of worker threads."
     ),
     verbose: bool = typer.Option(
         False, "--verbose", "-V", help="Show progress bar and verbose logs."
@@ -851,6 +976,15 @@ def init_graph(
             log_dir = Path("./run_logs")
         log_dir.mkdir(parents=True, exist_ok=True)
 
+        # Calculate optimal worker count based on collection size
+        optimal_workers = calculate_optimal_workers(total_vulns, max_workers)
+        if optimal_workers != max_workers:
+            console.print(
+                f"[*] Adjusted worker count from {max_workers} to {optimal_workers} "
+                f"based on collection size ({total_vulns} items)"
+            )
+            max_workers = optimal_workers
+
         console.print(f"[*] Found {total_vulns} vulnerability IDs to process.")
         console.print(f"[*] Using {max_workers} worker threads.")
         console.print(f"[*] Detailed log file will be saved in: {log_dir}")
@@ -864,10 +998,12 @@ def init_graph(
             }
             try:
                 # POST to /vulnerability.../initialise-exploit-graph
-                response = api_client.post(
-                    f"/vulnerability_records/{vulnID}/actions/"
-                    "initialise-exploit-graph",
-                    json={},
+                response = retry_with_backoff(
+                    lambda: api_client.post(
+                        f"/vulnerability_records/{vulnID}/actions/"
+                        "initialise-exploit-graph",
+                        json={},
+                    )
                 )
                 result["status_code"] = response.status_code
                 if 200 <= response.status_code < 300:
@@ -1003,7 +1139,7 @@ def refine_graph(
         None, "--id", "-i", help="A single vulnerability ID or CVE ID to process."
     ),
     max_workers: int = typer.Option(
-        16, "--max-workers", "-t", help="Number of worker threads."
+        4, "--max-workers", "-t", help="Number of worker threads."
     ),
     verbose: bool = typer.Option(
         False, "--verbose", "-V", help="Show progress bar and verbose logs."
@@ -1055,6 +1191,15 @@ def refine_graph(
             log_dir = Path("./run_logs")
         log_dir.mkdir(parents=True, exist_ok=True)
 
+        # Calculate optimal worker count based on collection size
+        optimal_workers = calculate_optimal_workers(total_vulns, max_workers)
+        if optimal_workers != max_workers:
+            console.print(
+                f"[*] Adjusted worker count from {max_workers} to {optimal_workers} "
+                f"based on collection size ({total_vulns} items)"
+            )
+            max_workers = optimal_workers
+
         console.print(f"[*] Found {total_vulns} vulnerability IDs to process.")
         console.print(f"[*] Using {max_workers} worker threads.")
         console.print(f"[*] Detailed log file will be saved in: {log_dir}")
@@ -1068,9 +1213,11 @@ def refine_graph(
             }
             try:
                 # POST to /vulnerability.../refine-exploit-graph
-                response = api_client.post(
-                    f"/vulnerability_records/{vulnID}/actions/" "refine-exploit-graph",
-                    json={},
+                response = retry_with_backoff(
+                    lambda: api_client.post(
+                        f"/vulnerability_records/{vulnID}/actions/" "refine-exploit-graph",
+                        json={},
+                    )
                 )
                 result["status_code"] = response.status_code
                 if 200 <= response.status_code < 300:
@@ -1209,7 +1356,7 @@ def update_source(
         help="A single vulnerability ID (CVE-XXXX-YYYY or vulnID UUID) to process."
     ),
     max_workers: int = typer.Option(
-        16, "--max-workers", "-t", help="Number of worker threads."
+        4, "--max-workers", "-t", help="Number of worker threads."
     ),
     verbose: bool = typer.Option(
         False, "--verbose", "-V", help="Show progress bar and verbose logs."
@@ -1268,6 +1415,15 @@ def update_source(
             log_dir = Path("./run_logs")
         log_dir.mkdir(parents=True, exist_ok=True)
 
+        # Calculate optimal worker count based on collection size
+        optimal_workers = calculate_optimal_workers(total_vulns, max_workers)
+        if optimal_workers != max_workers:
+            console.print(
+                f"[*] Adjusted worker count from {max_workers} to {optimal_workers} "
+                f"based on collection size ({total_vulns} items)"
+            )
+            max_workers = optimal_workers
+
         console.print(f"[*] Found {total_vulns} vulnerability IDs to process.")
         console.print(f"[*] Using {max_workers} worker threads.")
         console.print(f"[*] Detailed log file will be saved in: {log_dir}")
@@ -1281,9 +1437,11 @@ def update_source(
             }
             try:
                 # POST to /vulnerability.../update-from-source
-                response = api_client.post(
-                    f"/vulnerability_records/{vulnID}/actions/update-from-source",
-                    json={},  # Empty body as per Lambda function
+                response = retry_with_backoff(
+                    lambda: api_client.post(
+                        f"/vulnerability_records/{vulnID}/actions/update-from-source",
+                        json={},  # Empty body as per Lambda function
+                    )
                 )
                 result["status_code"] = response.status_code
                 if response.status_code == 202:
