@@ -48,7 +48,9 @@ def test_api_client_get_success(mocker):
     assert result.status_code == 200
     assert result.json() == {"data": "success"}
     mock_httpx_request.assert_called_once_with(
-        "GET", "/test-endpoint", params=None,
+        "GET",
+        "/test-endpoint",
+        params=None,
     )
 
 
@@ -76,7 +78,9 @@ def test_api_client_get_not_found_returns_none(mocker):
     assert result.status_code == 404
     # No need to assert json() as it might not be valid for 404
     mock_httpx_request.assert_called_once_with(
-        "GET", "/not-found-endpoint", params=None,
+        "GET",
+        "/not-found-endpoint",
+        params=None,
     )
 
 
@@ -90,7 +94,9 @@ def test_api_client_post_success(mocker):
         return_value="fake-token",
     )
     mock_response = httpx.Response(
-        201, json={"status": "created"}, request=httpx.Request("POST", ""),
+        201,
+        json={"status": "created"},
+        request=httpx.Request("POST", ""),
     )
     mock_request_method = mocker.patch(
         "wafrunner_cli.core.api_client.httpx.Client.request",
@@ -105,7 +111,9 @@ def test_api_client_post_success(mocker):
     # Assert
     assert result.json() == {"status": "created"}
     mock_request_method.assert_called_once_with(
-        "POST", "/create-endpoint", json=post_data,
+        "POST",
+        "/create-endpoint",
+        json=post_data,
     )
 
 
@@ -161,7 +169,8 @@ def test_api_client_fails_after_all_retries(mocker):
 
     # Simulate a persistent 503 error
     response_503 = httpx.Response(
-        503, json={"detail": "Service Unavailable"},
+        503,
+        json={"detail": "Service Unavailable"},
     )
     mocker.patch(
         "wafrunner_cli.core.api_client.httpx.Client.request",
@@ -170,7 +179,8 @@ def test_api_client_fails_after_all_retries(mocker):
 
     # Act & Assert
     with pytest.raises(
-        httpx.RequestError, match="API request failed after 5 retries",
+        httpx.RequestError,
+        match="API request failed after 5 retries",
     ):
         api_client = ApiClient()
         api_client.get("/non-existent-endpoint")

@@ -55,7 +55,7 @@ def retry_with_backoff(
     func: Callable[[], Any],
     max_retries: int = 3,
     base_delay: float = 1.0,
-    max_delay: float = 30.0
+    max_delay: float = 30.0,
 ) -> Any:
     """
     Retry failed requests with exponential backoff and jitter.
@@ -81,10 +81,7 @@ def retry_with_backoff(
             last_exception = e
             if e.response.status_code == 500 and attempt < max_retries:
                 # Calculate delay with exponential backoff and jitter
-                delay = min(
-                    base_delay * (2 ** attempt) + random.uniform(0, 1),
-                    max_delay
-                )
+                delay = min(base_delay * (2**attempt) + random.uniform(0, 1), max_delay)
                 time.sleep(delay)
                 continue
             # For non-500 errors or final attempt, re-raise immediately
@@ -93,7 +90,7 @@ def retry_with_backoff(
             last_exception = e
             if attempt < max_retries:
                 # For other exceptions, use shorter delay
-                delay = min(base_delay * (1.5 ** attempt), max_delay / 2)
+                delay = min(base_delay * (1.5**attempt), max_delay / 2)
                 time.sleep(delay)
                 continue
             raise
@@ -114,6 +111,7 @@ def create_worker_with_retry(api_client: ApiClient, max_retries: int = 3):
     Returns:
         A function that wraps API calls with retry logic
     """
+
     def worker_with_retry(operation_func: Callable[[], Any]) -> Any:
         """Execute an operation with retry logic."""
         return retry_with_backoff(operation_func, max_retries)
@@ -772,7 +770,7 @@ def classify(
                             api_client.post,
                             f"/vulnerability_records/{vulnID}/data_sources/"
                             f"{linkID_value}/actions/classify",
-                            json={}
+                            json={},
                         )
                     )
                     if 200 <= post_response.status_code < 300:
@@ -1127,8 +1125,8 @@ def init_graph(
         raise typer.Exit(code=1)
 
 
-@app.command("refine-graph")
-def refine_graph(
+@app.command("init-scdef")
+def init_scdef(
     collection: Optional[str] = typer.Option(
         None,
         "--collection",
@@ -1137,6 +1135,9 @@ def refine_graph(
     ),
     identifier: Optional[str] = typer.Option(
         None, "--id", "-i", help="A single vulnerability ID or CVE ID to process."
+    ),
+    graph: Optional[str] = typer.Option(
+        None, "--graph", "-g", help="Graph ID to use for SCDEF initialization."
     ),
     max_workers: int = typer.Option(
         4, "--max-workers", "-t", help="Number of worker threads."
@@ -1151,7 +1152,7 @@ def refine_graph(
     ),
 ):
     """
-    Trigger exploit graph refinement for vulnerabilities.
+    Trigger SCDEF initialization for vulnerabilities.
 
     You must provide either --collection/-c or --id/-i.
     """
@@ -1187,6 +1188,14 @@ def refine_graph(
             raise typer.Exit(code=1)
 
         total_vulns = len(vuln_ids)
+        # Auto-scale threads: 8 for collections with 30+ items, otherwise 4
+        if total_vulns >= 30 and max_workers == 4:
+            max_workers = 8
+            console.print(
+                f"[yellow]Auto-scaling to {max_workers} threads for large collection "
+                f"({total_vulns} items)[/yellow]"
+            )
+
         if not log_dir:
             log_dir = Path("./run_logs")
         log_dir.mkdir(parents=True, exist_ok=True)
@@ -1204,7 +1213,7 @@ def refine_graph(
         console.print(f"[*] Using {max_workers} worker threads.")
         console.print(f"[*] Detailed log file will be saved in: {log_dir}")
 
-        def process_vuln_for_graph_refinement(vulnID):
+        def process_vuln_for_scdef(vulnID):
             result = {
                 "vulnID": vulnID,
                 "status": "processed",
@@ -1212,12 +1221,15 @@ def refine_graph(
                 "status_code": None,
             }
             try:
-                # POST to /vulnerability.../refine-exploit-graph
-                response = retry_with_backoff(
-                    lambda: api_client.post(
-                        f"/vulnerability_records/{vulnID}/actions/" "refine-exploit-graph",
-                        json={},
-                    )
+                # Prepare request body
+                request_body = {}
+                if graph:
+                    request_body["graphID"] = graph
+
+                # POST to /vulnerability.../initialise-scdef
+                response = api_client.post(
+                    f"/vulnerability_records/{vulnID}/actions/initialise-scdef",
+                    json=request_body,
                 )
                 result["status_code"] = response.status_code
                 if 200 <= response.status_code < 300:
@@ -1227,7 +1239,7 @@ def refine_graph(
                     result["error"] = f"HTTP {response.status_code}: {response.text}"
                     if verbose:
                         console.print(
-                            f"[red]Failed to trigger exploit graph refinement for {vulnID}: "
+                            f"[red]Failed to trigger SCDEF initialization for {vulnID}: "
                             f"{result['error']}[/red]"
                         )
             except Exception as e:
@@ -1263,7 +1275,7 @@ def refine_graph(
                 max_workers=max_workers
             ) as executor:
                 future_to_vulnid = {
-                    executor.submit(process_vuln_for_graph_refinement, vuln_id): vuln_id
+                    executor.submit(process_vuln_for_scdef, vuln_id): vuln_id
                     for vuln_id in vuln_ids
                 }
                 for future in concurrent.futures.as_completed(future_to_vulnid):
@@ -1302,15 +1314,14 @@ def refine_graph(
         )
 
         # --- Write Detailed Log File ---
-        log_filename = (
-            f"exploit_graph_refinement_log_{time.strftime('%Y%m%d-%H%M%S')}.json"
-        )
+        log_filename = f"scdef_init_log_{time.strftime('%Y%m%d-%H%M%S')}.json"
         log_filepath = log_dir / log_filename
         log_data = {
             "run_timestamp": datetime.now(timezone.utc).isoformat(),
             "threads": max_workers,
             "input_collection": collection,
             "input_vulnid": identifier,
+            "graph_id": graph,
             "summary": {
                 "processed_vulnIDs": processed_vuln_count,
                 "total_vulnIDs_in_collection": total_vulns,
@@ -1353,7 +1364,7 @@ def update_source(
         None,
         "--id",
         "-i",
-        help="A single vulnerability ID (CVE-XXXX-YYYY or vulnID UUID) to process."
+        help="A single vulnerability ID (CVE-XXXX-YYYY or vulnID UUID) to process.",
     ),
     max_workers: int = typer.Option(
         4, "--max-workers", "-t", help="Number of worker threads."
@@ -1532,9 +1543,7 @@ def update_source(
         )
 
         # --- Write Detailed Log File ---
-        log_filename = (
-            f"update_source_log_{time.strftime('%Y%m%d-%H%M%S')}.json"
-        )
+        log_filename = f"update_source_log_{time.strftime('%Y%m%d-%H%M%S')}.json"
         log_filepath = log_dir / log_filename
         log_data = {
             "run_timestamp": datetime.now(timezone.utc).isoformat(),

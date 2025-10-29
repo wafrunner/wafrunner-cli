@@ -28,20 +28,24 @@ class TestResearchCommands(unittest.TestCase):
 
         # Run the command with a CVE ID
         result = self.runner.invoke(
-            app, ["research", "github", "--id", "CVE-2024-1234"],
+            app,
+            ["research", "github", "--id", "CVE-2024-1234"],
         )
         self.assertEqual(result.exit_code, 0)
         self.assertIn(
-            "Found 1 vulnerability ID(s) to process.", result.stdout,
+            "Found 1 vulnerability ID(s) to process.",
+            result.stdout,
         )
 
         # Run the command with a vuln ID
         result = self.runner.invoke(
-            app, ["research", "github", "--id", "vuln-1234"],
+            app,
+            ["research", "github", "--id", "vuln-1234"],
         )
         self.assertEqual(result.exit_code, 0)
         self.assertIn(
-            "Found 1 vulnerability ID(s) to process.", result.stdout,
+            "Found 1 vulnerability ID(s) to process.",
+            result.stdout,
         )
 
     @patch("wafrunner_cli.commands.research.lookup_ids")
@@ -52,11 +56,13 @@ class TestResearchCommands(unittest.TestCase):
 
         # Run the command with an invalid ID
         result = self.runner.invoke(
-            app, ["research", "github", "--id", "invalid-id"],
+            app,
+            ["research", "github", "--id", "invalid-id"],
         )
         self.assertEqual(result.exit_code, 1)
         self.assertIn(
-            "Could not resolve identifier: invalid-id", result.stdout,
+            "Could not resolve identifier: invalid-id",
+            result.stdout,
         )
 
     @patch("wafrunner_cli.commands.research.lookup_ids")
@@ -75,11 +81,13 @@ class TestResearchCommands(unittest.TestCase):
 
         # Run the command with a CVE ID
         result = self.runner.invoke(
-            app, ["research", "refine-graph", "--id", "CVE-2024-5678"],
+            app,
+            ["research", "refine-graph", "--id", "CVE-2024-5678"],
         )
         self.assertEqual(result.exit_code, 0, result.stdout)
         self.assertIn(
-            "Found 1 vulnerability IDs to process.", result.stdout,
+            "Found 1 vulnerability IDs to process.",
+            result.stdout,
         )
         self.assertIn("Successful Triggers: 1", result.stdout)
         mock_api_instance.post.assert_called_once_with(
@@ -114,7 +122,8 @@ class TestResearchCommands(unittest.TestCase):
         )
         self.assertEqual(result.exit_code, 0, result.stdout)
         self.assertIn(
-            "Found 1 vulnerability IDs to process.", result.stdout,
+            "Found 1 vulnerability IDs to process.",
+            result.stdout,
         )
         self.assertIn("Failed Triggers:     1", result.stdout)
         self.assertIn(
@@ -127,17 +136,126 @@ class TestResearchCommands(unittest.TestCase):
         )
 
     @patch("wafrunner_cli.commands.research.lookup_ids")
-    def test_refine_graph_with_invalid_id(self, mock_lookup_ids):
+    @patch("wafrunner_cli.commands.research.ApiClient")
+    def test_init_scdef_with_id_and_graph_success(self, MockApiClient, mock_lookup_ids):
+        # Mock the lookup service to return a valid response
+        mock_lookup_ids.return_value = {
+            "cve_id": "CVE-2024-9999",
+            "vuln_id": "vuln-9999",
+        }
+
+        # Mock the API client to avoid actual API calls
+        mock_api_instance = MockApiClient.return_value
+        # The command checks for 2xx status codes
+        mock_api_instance.post.return_value.status_code = 202
+
+        # Run the command with a CVE ID and graph
+        result = self.runner.invoke(
+            app,
+            [
+                "research",
+                "init-scdef",
+                "--id",
+                "CVE-2024-9999",
+                "--graph",
+                "test-graph",
+            ],
+        )
+        self.assertEqual(result.exit_code, 0, result.stdout)
+        self.assertIn(
+            "Found 1 vulnerability IDs to process.",
+            result.stdout,
+        )
+        self.assertIn("Successful Triggers: 1", result.stdout)
+        mock_api_instance.post.assert_called_once_with(
+            "/vulnerability_records/vuln-9999/actions/initialise-scdef",
+            json={"graphID": "test-graph"},
+        )
+
+    @patch("wafrunner_cli.commands.research.lookup_ids")
+    @patch("wafrunner_cli.commands.research.ApiClient")
+    def test_init_scdef_with_id_no_graph_success(self, MockApiClient, mock_lookup_ids):
+        # Mock the lookup service to return a valid response
+        mock_lookup_ids.return_value = {
+            "cve_id": "CVE-2024-9998",
+            "vuln_id": "vuln-9998",
+        }
+
+        # Mock the API client to avoid actual API calls
+        mock_api_instance = MockApiClient.return_value
+        # The command checks for 2xx status codes
+        mock_api_instance.post.return_value.status_code = 202
+
+        # Run the command with a CVE ID but no graph
+        result = self.runner.invoke(
+            app,
+            ["research", "init-scdef", "--id", "CVE-2024-9998"],
+        )
+        self.assertEqual(result.exit_code, 0, result.stdout)
+        self.assertIn(
+            "Found 1 vulnerability IDs to process.",
+            result.stdout,
+        )
+        self.assertIn("Successful Triggers: 1", result.stdout)
+        mock_api_instance.post.assert_called_once_with(
+            "/vulnerability_records/vuln-9998/actions/initialise-scdef",
+            json={},
+        )
+
+    @patch("wafrunner_cli.commands.research.lookup_ids")
+    @patch("wafrunner_cli.commands.research.ApiClient")
+    def test_init_scdef_with_id_failure(self, MockApiClient, mock_lookup_ids):
+        # Mock the lookup service to return a valid response
+        mock_lookup_ids.return_value = {
+            "cve_id": "CVE-2024-9997",
+            "vuln_id": "vuln-9997",
+        }
+
+        # Mock the API client to return a failure
+        mock_api_instance = MockApiClient.return_value
+        mock_api_instance.post.return_value.status_code = 500
+        mock_api_instance.post.return_value.text = "Server Error"
+
+        # Run the command with a CVE ID
+        result = self.runner.invoke(
+            app,
+            [
+                "research",
+                "init-scdef",
+                "--id",
+                "CVE-2024-9997",
+                "--verbose",
+            ],
+        )
+        self.assertEqual(result.exit_code, 0, result.stdout)
+        self.assertIn(
+            "Found 1 vulnerability IDs to process.",
+            result.stdout,
+        )
+        self.assertIn("Failed Triggers:     1", result.stdout)
+        self.assertIn(
+            "Failed to trigger SCDEF initialization for vuln-9997",
+            result.stdout,
+        )
+        mock_api_instance.post.assert_called_once_with(
+            "/vulnerability_records/vuln-9997/actions/initialise-scdef",
+            json={},
+        )
+
+    @patch("wafrunner_cli.commands.research.lookup_ids")
+    def test_init_scdef_with_invalid_id(self, mock_lookup_ids):
         # Mock the lookup service to return None
         mock_lookup_ids.return_value = None
 
         # Run the command with an invalid ID
         result = self.runner.invoke(
-            app, ["research", "refine-graph", "--id", "invalid-id"],
+            app,
+            ["research", "init-scdef", "--id", "invalid-id"],
         )
         self.assertEqual(result.exit_code, 1)
         self.assertIn(
-            "Could not resolve identifier: invalid-id", result.stdout,
+            "Could not resolve identifier: invalid-id",
+            result.stdout,
         )
 
     @patch("wafrunner_cli.commands.research.lookup_ids")
@@ -155,7 +273,8 @@ class TestResearchCommands(unittest.TestCase):
 
         # Run the command with a CVE ID
         result = self.runner.invoke(
-            app, ["research", "update-source", "--id", "CVE-2024-1234"],
+            app,
+            ["research", "update-source", "--id", "CVE-2024-1234"],
         )
         self.assertEqual(result.exit_code, 0)
         self.assertIn("Found 1 vulnerability IDs to process.", result.stdout)
@@ -180,7 +299,12 @@ class TestResearchCommands(unittest.TestCase):
         # Run the command with a vulnID
         result = self.runner.invoke(
             app,
-            ["research", "update-source", "--id", "1d4f8624-8acf-4c57-ab06-2b7bdf93ca36"],
+            [
+                "research",
+                "update-source",
+                "--id",
+                "1d4f8624-8acf-4c57-ab06-2b7bdf93ca36",
+            ],
         )
         self.assertEqual(result.exit_code, 0)
         self.assertIn("Found 1 vulnerability IDs to process.", result.stdout)
@@ -207,7 +331,8 @@ class TestResearchCommands(unittest.TestCase):
 
         # Run the command with a CVE ID
         result = self.runner.invoke(
-            app, ["research", "update-source", "--id", "CVE-2024-1234", "--verbose"],
+            app,
+            ["research", "update-source", "--id", "CVE-2024-1234", "--verbose"],
         )
         self.assertEqual(result.exit_code, 0)
         self.assertIn("Found 1 vulnerability IDs to process.", result.stdout)
@@ -221,11 +346,13 @@ class TestResearchCommands(unittest.TestCase):
 
         # Run the command with an invalid ID
         result = self.runner.invoke(
-            app, ["research", "update-source", "--id", "invalid-id"],
+            app,
+            ["research", "update-source", "--id", "invalid-id"],
         )
         self.assertEqual(result.exit_code, 1)
         self.assertIn(
-            "Could not resolve identifier: invalid-id", result.stdout,
+            "Could not resolve identifier: invalid-id",
+            result.stdout,
         )
 
     @patch("wafrunner_cli.commands.research.lookup_ids")
@@ -244,7 +371,8 @@ class TestResearchCommands(unittest.TestCase):
 
         # Run the command with a CVE ID
         result = self.runner.invoke(
-            app, ["research", "update-source", "--id", "CVE-2024-1234", "--verbose"],
+            app,
+            ["research", "update-source", "--id", "CVE-2024-1234", "--verbose"],
         )
         self.assertEqual(result.exit_code, 0)
         self.assertIn("Found 1 vulnerability IDs to process.", result.stdout)
