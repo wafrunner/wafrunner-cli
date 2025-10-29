@@ -1,17 +1,26 @@
 # .pre-commit-config.yaml
 
 repos:
--   repo: https://github.com/pre-commit/pre-commit-hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0
     hooks:
-    -   id: check-yaml
-    -   id: end-of-file-fixer
-    -   id: trailing-whitespace
--   repo: https://github.com/psf/black
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+  - repo: https://github.com/psf/black
     rev: 24.4.2
     hooks:
-    -   id: black
--   repo: https://github.com/pycqa/flake8
+      - id: black
+  - repo: https://github.com/pycqa/flake8
     rev: 7.1.0
     hooks:
-    -   id: flake8
+      - id: flake8
+  - repo: local
+    hooks:
+      - id: verify-commands
+        name: Verify CLI Commands
+        entry: ./scripts/verify-commands.sh
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
