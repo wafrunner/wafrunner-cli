@@ -55,7 +55,7 @@ def retry_with_backoff(
     func: Callable[[], Any],
     max_retries: int = 3,
     base_delay: float = 1.0,
-    max_delay: float = 30.0
+    max_delay: float = 30.0,
 ) -> Any:
     """
     Retry failed requests with exponential backoff and jitter.
@@ -81,10 +81,7 @@ def retry_with_backoff(
             last_exception = e
             if e.response.status_code == 500 and attempt < max_retries:
                 # Calculate delay with exponential backoff and jitter
-                delay = min(
-                    base_delay * (2 ** attempt) + random.uniform(0, 1),
-                    max_delay
-                )
+                delay = min(base_delay * (2**attempt) + random.uniform(0, 1), max_delay)
                 time.sleep(delay)
                 continue
             # For non-500 errors or final attempt, re-raise immediately
@@ -93,7 +90,7 @@ def retry_with_backoff(
             last_exception = e
             if attempt < max_retries:
                 # For other exceptions, use shorter delay
-                delay = min(base_delay * (1.5 ** attempt), max_delay / 2)
+                delay = min(base_delay * (1.5**attempt), max_delay / 2)
                 time.sleep(delay)
                 continue
             raise
@@ -114,6 +111,7 @@ def create_worker_with_retry(api_client: ApiClient, max_retries: int = 3):
     Returns:
         A function that wraps API calls with retry logic
     """
+
     def worker_with_retry(operation_func: Callable[[], Any]) -> Any:
         """Execute an operation with retry logic."""
         return retry_with_backoff(operation_func, max_retries)
@@ -443,6 +441,9 @@ def scrape(
     identifier: Optional[str] = typer.Option(
         None, "--id", "-i", help="A single vulnerability ID or CVE ID to process."
     ),
+    max_workers: int = typer.Option(
+        4, "--max-workers", "-t", help="Number of worker threads."
+    ),
 ):
     """Trigger scrapes for data sources associated with vulnerabilities."""
     console = Console()
@@ -477,79 +478,56 @@ def scrape(
             )
             raise typer.Exit(code=1)
 
-        console.print(
-            f"Found {len(vuln_ids)} vulnerability ID(s) to process for scraping."
-        )
-
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-            console=console,
-        ) as progress:
-            task = progress.add_task(
-                "[green]Processing VulnIDs...", total=len(vuln_ids)
+        total_vulns = len(vuln_ids)
+        # Calculate optimal worker count based on collection size
+        optimal_workers = calculate_optimal_workers(total_vulns, max_workers)
+        if optimal_workers != max_workers:
+            console.print(
+                f"[*] Adjusted worker count from {max_workers} to {optimal_workers} "
+                f"based on collection size ({total_vulns} items)"
             )
+            max_workers = optimal_workers
 
-            for current_vuln_id in vuln_ids:
-                progress.update(
-                    task, description=f"[green]Processing {current_vuln_id}[/green]"
-                )
+        console.print(
+            f"[*] Found {total_vulns} vulnerability ID(s) to process for scraping."
+        )
+        console.print(f"[*] Using {max_workers} worker threads.")
 
+        def process_vuln_for_scrape(current_vuln_id):
+            result = {
+                "vulnID": current_vuln_id,
+                "triggered": 0,
+                "skipped": 0,
+                "error": None,
+            }
+            try:
                 # --- Real API call to get data sources ---
-                try:
-                    response = api_client.get(
-                        f"/vulnerability_records/{current_vuln_id}/data_sources"
-                    )
-                except AuthenticationError as e:
-                    raise e  # Re-raise to be caught by the main handler
-                except Exception as e:
-                    console.print(f"[red]API error for {current_vuln_id}: {e}[/red]")
-                    progress.advance(task)
-                    continue
-
+                response = api_client.get(
+                    f"/vulnerability_records/{current_vuln_id}/data_sources"
+                )
                 if response.status_code == 404:
-                    console.print(
-                        f"Info: No data sources found for {current_vuln_id} (or "
-                        f"record not found)."
-                    )
-                    progress.advance(task)
-                    continue
+                    result["error"] = "No data sources found"
+                    return result
 
                 try:
                     data_sources = response.json()
                 except Exception as e:
-                    console.print(
-                        f"[red]Failed to parse data sources for "
-                        f"{current_vuln_id}: {e}[/red]"
-                    )
-                    progress.advance(task)
-                    continue
+                    result["error"] = f"Failed to parse data sources: {e}"
+                    return result
 
-                triggered_count = 0
-                skipped_count = 0
                 for record in data_sources:
                     if not isinstance(record, dict):
-                        console.print(
-                            f"[yellow]Warning:[/yellow] Skipping invalid data "
-                            f"source record (not a dict) for {current_vuln_id}."
-                        )
                         continue
 
                     link_id = record.get("linkID")
                     scraped_status = str(record.get("scrapedStatus", "")).lower()
 
                     if not link_id:
-                        console.print(
-                            f"[yellow]Warning:[/yellow] Skipping record for "
-                            f"{current_vuln_id} due to missing linkID."
-                        )
-                        skipped_count += 1
+                        result["skipped"] += 1
                         continue
 
                     if scraped_status in ("complete", "error"):
-                        skipped_count += 1
+                        result["skipped"] += 1
                         continue
 
                     # --- Real API call to trigger scrape ---
@@ -561,32 +539,79 @@ def scrape(
                             ),
                             json={},
                         )
-                    except Exception as e:
-                        console.print(
-                            f"[red]Failed to trigger scrape for linkID: "
-                            f"{link_id} ({e})[/red]"
-                        )
-                        continue
+                        if post_response.status_code in (200, 201, 409):
+                            result["triggered"] += 1
+                    except Exception:
+                        # Silently continue - individual scrape failures
+                        # don't fail the whole operation
+                        pass
 
-                    if post_response.status_code not in (200, 201, 409):
-                        console.print(
-                            f"[red]Failed to trigger scrape for linkID: "
-                            f"{link_id} (Status: {post_response.status_code})"
-                            "[/red]"
-                        )
-                    else:
-                        triggered_count += 1
+            except AuthenticationError:
+                raise
+            except Exception as e:
+                result["error"] = str(e)
 
-                console.print(
-                    f"Summary for {current_vuln_id}: Triggered [bold "
-                    f"green]{triggered_count}[/bold green] scrapes, skipped "
-                    f"[bold yellow]{skipped_count}[/bold yellow] data sources."
-                )
-                progress.advance(task)
+            return result
+
+        total_triggered = 0
+        total_skipped = 0
+        processed_count = 0
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            TextColumn("•"),
+            TextColumn("•"),
+            TimeRemainingColumn(),
+            console=console,
+            transient=False,
+        ) as progress:
+            task = progress.add_task(
+                f"[green]Processing {total_vulns} VulnIDs...", total=total_vulns
+            )
+            with concurrent.futures.ThreadPoolExecutor(
+                max_workers=max_workers
+            ) as executor:
+                future_to_vulnid = {
+                    executor.submit(process_vuln_for_scrape, vuln_id): vuln_id
+                    for vuln_id in vuln_ids
+                }
+                for future in concurrent.futures.as_completed(future_to_vulnid):
+                    vuln_id = future_to_vulnid[future]
+                    try:
+                        result = future.result()
+                        processed_count += 1
+                        total_triggered += result.get("triggered", 0)
+                        total_skipped += result.get("skipped", 0)
+                        if result.get("error"):
+                            console.print(
+                                f"[yellow]Warning for {vuln_id}: {result['error']}[/yellow]"
+                            )
+                        elif (
+                            result.get("triggered", 0) > 0
+                            or result.get("skipped", 0) > 0
+                        ):
+                            console.print(
+                                f"Summary for {vuln_id}: Triggered [bold "
+                                f"green]{result['triggered']}[/bold green] scrapes, "
+                                f"skipped [bold yellow]{result['skipped']}[/bold yellow] "
+                                "data sources."
+                            )
+                    except Exception as exc:
+                        if isinstance(exc, AuthenticationError):
+                            raise
+                        console.print(f"[red]Error processing {vuln_id}: {exc}[/red]")
+                    progress.advance(task)
 
         console.print(
             "\n[bold green]✔ Finished processing all vulnerability IDs for "
             "scraping.[/bold green]"
+        )
+        console.print(
+            f"Total triggered: [green]{total_triggered}[/green], "
+            f"Total skipped: [yellow]{total_skipped}[/yellow]"
         )
 
     except AuthenticationError as e:
@@ -772,7 +797,7 @@ def classify(
                             api_client.post,
                             f"/vulnerability_records/{vulnID}/data_sources/"
                             f"{linkID_value}/actions/classify",
-                            json={}
+                            json={},
                         )
                     )
                     if 200 <= post_response.status_code < 300:
@@ -1127,6 +1152,225 @@ def init_graph(
         raise typer.Exit(code=1)
 
 
+@app.command("init-scdef")
+def init_scdef(
+    collection: Optional[str] = typer.Option(
+        None,
+        "--collection",
+        "-c",
+        help="Name of the collection file containing vulnerability IDs.",
+    ),
+    identifier: Optional[str] = typer.Option(
+        None, "--id", "-i", help="A single vulnerability ID or CVE ID to process."
+    ),
+    graph: Optional[str] = typer.Option(
+        None, "--graph", "-g", help="Graph ID to use for SCDEF initialization."
+    ),
+    max_workers: int = typer.Option(
+        4, "--max-workers", "-t", help="Number of worker threads."
+    ),
+    verbose: bool = typer.Option(
+        False, "--verbose", "-V", help="Show progress bar and verbose logs."
+    ),
+    log_dir: Optional[Path] = typer.Option(
+        None,
+        "--log-dir",
+        help="Directory to save the detailed JSON log file (default: ./run_logs)",
+    ),
+):
+    """
+    Trigger SCDEF initialization for vulnerabilities.
+
+    You must provide either --collection/-c or --id/-i.
+    """
+    console = Console()
+    if not collection and not identifier:
+        console.print(
+            "[bold red]Error:[/bold red] Please provide either a --collection or an "
+            "--id."
+        )
+        raise typer.Exit(code=1)
+    if collection and identifier:
+        console.print(
+            "[bold red]Error:[/bold red] Options --collection and --id are mutually "
+            "exclusive."
+        )
+        raise typer.Exit(code=1)
+
+    try:
+        config_mgr = ConfigManager()
+        api_client = ApiClient()
+        if identifier:
+            vuln_id = _resolve_identifier(identifier)
+            vuln_ids = [vuln_id] if vuln_id else []
+        else:
+            identifiers = get_vuln_identifiers_from_collection(collection, config_mgr)
+            vuln_ids = [item["vuln_id"] for item in identifiers]
+
+        if not vuln_ids:
+            console.print(
+                "[bold red]Error:[/bold red] No valid vulnerability IDs found to "
+                "process."
+            )
+            raise typer.Exit(code=1)
+
+        total_vulns = len(vuln_ids)
+        if not log_dir:
+            log_dir = Path("./run_logs")
+        log_dir.mkdir(parents=True, exist_ok=True)
+
+        # Calculate optimal worker count based on collection size
+        optimal_workers = calculate_optimal_workers(total_vulns, max_workers)
+        if optimal_workers != max_workers:
+            console.print(
+                f"[*] Adjusted worker count from {max_workers} to {optimal_workers} "
+                f"based on collection size ({total_vulns} items)"
+            )
+            max_workers = optimal_workers
+
+        console.print(f"[*] Found {total_vulns} vulnerability IDs to process.")
+        console.print(f"[*] Using {max_workers} worker threads.")
+        console.print(f"[*] Detailed log file will be saved in: {log_dir}")
+
+        def process_vuln_for_scdef(vulnID):
+            result = {
+                "vulnID": vulnID,
+                "status": "processed",
+                "error": None,
+                "status_code": None,
+            }
+            try:
+                # Prepare request body
+                request_body = {}
+                if graph:
+                    request_body["graphID"] = graph
+
+                # POST to /vulnerability.../initialise-scdef
+                response = api_client.post(
+                    f"/vulnerability_records/{vulnID}/actions/initialise-scdef",
+                    json=request_body,
+                )
+                result["status_code"] = response.status_code
+                if 200 <= response.status_code < 300:
+                    result["status"] = "success"
+                else:
+                    result["status"] = "failed"
+                    result["error"] = f"HTTP {response.status_code}: {response.text}"
+                    if verbose:
+                        console.print(
+                            f"[red]Failed to trigger SCDEF initialization for {vulnID}: "
+                            f"{result['error']}[/red]"
+                        )
+            except Exception as e:
+                if isinstance(e, AuthenticationError):
+                    raise
+                result["status"] = "failed"
+                result["error"] = str(e)
+                if verbose:
+                    console.print(f"[red]Exception for {vulnID}: {e}[/red]")
+            return result
+
+        all_results = []
+        total_success = 0
+        total_failed = 0
+        processed_vuln_count = 0
+
+        start_time = time.time()
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            TextColumn("•"),
+            TextColumn("•"),
+            TimeRemainingColumn(),
+            console=console,
+            transient=False,
+        ) as progress:
+            task = progress.add_task(
+                f"[green]Processing {total_vulns} VulnIDs...", total=total_vulns
+            )
+            with concurrent.futures.ThreadPoolExecutor(
+                max_workers=max_workers
+            ) as executor:
+                future_to_vulnid = {
+                    executor.submit(process_vuln_for_scdef, vuln_id): vuln_id
+                    for vuln_id in vuln_ids
+                }
+                for future in concurrent.futures.as_completed(future_to_vulnid):
+                    vuln_id = future_to_vulnid[future]
+                    try:
+                        result = future.result()
+                        all_results.append(result)
+                        processed_vuln_count += 1
+                        if result.get("status") == "success":
+                            total_success += 1
+                        else:
+                            total_failed += 1
+                    except Exception as exc:
+                        if isinstance(exc, AuthenticationError):
+                            raise
+                        all_results.append(
+                            {
+                                "vulnID": vuln_id,
+                                "status": "thread_exception",
+                                "error": str(exc),
+                            }
+                        )
+                        total_failed += 1
+                    progress.advance(task)
+
+        end_time = time.time()
+        duration = end_time - start_time
+        rate = processed_vuln_count / duration if duration > 0 else 0
+
+        console.print("\n--- Processing Summary ---")
+        console.print(f"Processed {processed_vuln_count}/{total_vulns} vulnIDs.")
+        console.print(f"Successful Triggers: {total_success}")
+        console.print(f"Failed Triggers:     {total_failed}")
+        console.print(
+            f"Total processing time: {duration:.2f} seconds ({rate:.2f} vulnIDs/sec)"
+        )
+
+        # --- Write Detailed Log File ---
+        log_filename = f"scdef_init_log_{time.strftime('%Y%m%d-%H%M%S')}.json"
+        log_filepath = log_dir / log_filename
+        log_data = {
+            "run_timestamp": datetime.now(timezone.utc).isoformat(),
+            "threads": max_workers,
+            "input_collection": collection,
+            "input_vulnid": identifier,
+            "graph_id": graph,
+            "summary": {
+                "processed_vulnIDs": processed_vuln_count,
+                "total_vulnIDs_in_collection": total_vulns,
+                "total_success": total_success,
+                "total_failed": total_failed,
+                "processing_time_seconds": round(duration, 2),
+                "processing_rate_vulnIDs_per_sec": round(rate, 2),
+            },
+            "details_per_vulnID": all_results,
+        }
+        try:
+            with log_filepath.open("w", encoding="utf-8") as f_log:
+                json.dump(log_data, f_log, indent=4)
+            console.print(f"[*] Detailed results saved to: {log_filepath}")
+        except Exception as e:
+            console.print(
+                f"\n[red]Error writing detailed log file to {log_dir}: {e}[/red]"
+            )
+
+        if total_failed > 0:
+            console.print(
+                "\n[bold yellow]Completed with errors. Check logs above and the "
+                "detailed log file.[/bold yellow]"
+            )
+
+    except AuthenticationError as e:
+        console.print(f"\n[bold red]API Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
 @app.command("refine-graph")
 def refine_graph(
     collection: Optional[str] = typer.Option(
@@ -1215,7 +1459,8 @@ def refine_graph(
                 # POST to /vulnerability.../refine-exploit-graph
                 response = retry_with_backoff(
                     lambda: api_client.post(
-                        f"/vulnerability_records/{vulnID}/actions/" "refine-exploit-graph",
+                        f"/vulnerability_records/{vulnID}/actions/"
+                        "refine-exploit-graph",
                         json={},
                     )
                 )
@@ -1353,7 +1598,7 @@ def update_source(
         None,
         "--id",
         "-i",
-        help="A single vulnerability ID (CVE-XXXX-YYYY or vulnID UUID) to process."
+        help="A single vulnerability ID (CVE-XXXX-YYYY or vulnID UUID) to process.",
     ),
     max_workers: int = typer.Option(
         4, "--max-workers", "-t", help="Number of worker threads."
@@ -1532,9 +1777,7 @@ def update_source(
         )
 
         # --- Write Detailed Log File ---
-        log_filename = (
-            f"update_source_log_{time.strftime('%Y%m%d-%H%M%S')}.json"
-        )
+        log_filename = f"update_source_log_{time.strftime('%Y%m%d-%H%M%S')}.json"
         log_filepath = log_dir / log_filename
         log_data = {
             "run_timestamp": datetime.now(timezone.utc).isoformat(),

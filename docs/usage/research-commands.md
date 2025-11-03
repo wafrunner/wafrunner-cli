@@ -1,4 +1,3 @@
-
 # Research Commands
 
 The `research` command group helps you initiate research tasks against vulnerability identifiers.
@@ -38,3 +37,34 @@ wafrunner research scrape --id CVE-2021-44228
 ```
 
 This command will fetch all related links and initiate a data scrape for each one.
+
+## SCDEF Initialization
+
+You can trigger SCDEF (Security Control Definition) initialization for vulnerabilities:
+
+### By Single Identifier
+
+```sh
+wafrunner research init-scdef --id CVE-2021-44228
+```
+
+### With Custom Graph ID
+
+```sh
+wafrunner research init-scdef --id CVE-2021-44228 --graph my-graph-id
+```
+
+### From a Collection
+
+```sh
+wafrunner research init-scdef --collection my-collection
+```
+
+The command supports:
+
+- `--graph/-g`: Specify a custom graph ID (optional, defaults to API-selected graph)
+- `--max-workers/-t`: Number of worker threads (default: 4, auto-scales to 8 for collections with 30+ items)
+- `--verbose/-V`: Show detailed logging
+- `--log-dir`: Custom log directory (default: `./run_logs`)
+
+The tool requires that you provide either `--id` or `--collection`, but not both.

@@ -1,38 +1,43 @@
 {
-    // --- Testing Configuration ---
-    // Using pytest as per the Code Quality Guide
-    "python.testing.pytestEnabled": true,
-    "python.testing.unittestEnabled": false,
-    "python.testing.pytestArgs": [
-        "tests" // Assumes your tests are in a 'tests' directory
-    ],
+  // --- Testing Configuration ---
+  // Using pytest as per the Code Quality Guide
+  "python.testing.pytestEnabled": true,
+  "python.testing.unittestEnabled": false,
+  "python.testing.pytestArgs": [
+    "tests" // Assumes your tests are in a 'tests' directory
+  ],
 
-    // --- Static Analysis & Type Checking ---
-    // These settings provide helpful, non-blocking analysis as you code
-    "python.analysis.typeCheckingMode": "basic",
-    "python.analysis.diagnosticMode": "workspace",
-    "python.analysis.indexing": true,
-    "python.analysis.autoSearchPaths": true,
-    "python.analysis.useLibraryCodeForTypes": true,
-    "python.analysis.logLevel": "Error",
+  // --- Static Analysis & Type Checking ---
+  // These settings provide helpful, non-blocking analysis as you code
+  "python.analysis.typeCheckingMode": "basic",
+  "python.analysis.diagnosticMode": "workspace",
+  "python.analysis.indexing": true,
+  "python.analysis.autoSearchPaths": true,
+  "python.analysis.useLibraryCodeForTypes": true,
+  "python.analysis.logLevel": "Error",
 
-    // --- Formatting with Black ---
-    // Ensures consistent code style automatically
-    "python.formatting.provider": "black",
-    "python.formatting.blackArgs": [
-        "--line-length",
-        "88" // Standard black line length
-    ],
+  // --- Formatting with Black ---
+  // Ensures consistent code style automatically
+  "python.formatting.provider": "black",
+  "python.formatting.blackArgs": [
+    "--line-length",
+    "88" // Standard black line length
+  ],
 
-    // --- Linting with Flake8 ---
-    // Catches style issues and simple bugs
-    "python.linting.flake8Enabled": true,
-    "python.linting.enabled": true,
+  // --- Linting with Flake8 ---
+  // Catches style issues and simple bugs
+  "python.linting.flake8Enabled": true,
+  "python.linting.enabled": true,
 
-    // --- Editor Integrations ---
-    // Enables format on save for a smooth workflow
-    "editor.formatOnSave": true,
-    "[python]": {
-        "editor.defaultFormatter": "ms-python.black-formatter"
-    }
+  // --- Editor Integrations ---
+  // Enables format on save for a smooth workflow
+  "editor.formatOnSave": true,
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.black-formatter"
+  },
+  "cursorpyright.analysis.autoSearchPaths": true,
+  "cursorpyright.analysis.diagnosticMode": "workspace",
+  "cursorpyright.analysis.logLevel": "Error",
+  "cursorpyright.analysis.typeCheckingMode": "basic",
+  "cursorpyright.analysis.useLibraryCodeForTypes": true
 }
