@@ -1,7 +1,7 @@
 import typer
 
 # Import the Typer apps from your command modules
-from .commands import collection, research, data, configure, shell, update
+from .commands import collection, research, data, configure, shell, update, test
 
 # Create the main Typer app
 app = typer.Typer(
@@ -26,6 +26,11 @@ app.add_typer(
     data.app,
     name="data",
     help="Commands for downloading and managing research artifacts.",
+)
+app.add_typer(
+    test.app,
+    name="test",
+    help="Commands for executing and managing Forge test runs.",
 )
 app.command(
     "update",
