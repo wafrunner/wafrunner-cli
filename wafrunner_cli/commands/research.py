@@ -23,6 +23,7 @@ from rich.table import Table
 from wafrunner_cli.core.api_client import ApiClient
 from wafrunner_cli.core.exceptions import AuthenticationError
 from wafrunner_cli.core.lookup_service import lookup_ids
+from wafrunner_cli.core.config_manager import ConfigManager as CoreConfigManager
 
 
 # --- Smart Concurrency Utilities ---
@@ -120,6 +121,8 @@ def create_worker_with_retry(api_client: ApiClient, max_retries: int = 3):
 
 
 # --- Config Manager (for data dir only) ---
+# Note: This is a local ConfigManager for backward compatibility
+# Consider migrating to wafrunner_cli.core.config_manager.ConfigManager
 class ConfigManager:
     def __init__(self):
         self._data_dir = Path.home() / ".wafrunner" / "data"
@@ -705,7 +708,9 @@ def classify(
         total_vulns = len(vuln_ids)
         mode_str = "Update" if update else "Retry" if retry else "Standard"
         if not log_dir:
-            log_dir = Path("./run_logs")
+            # Use configurable log directory from config
+            core_config = CoreConfigManager()
+            log_dir = core_config.get_log_dir()
         log_dir.mkdir(parents=True, exist_ok=True)
 
         # Calculate optimal worker count based on collection size
@@ -998,7 +1003,9 @@ def init_graph(
 
         total_vulns = len(vuln_ids)
         if not log_dir:
-            log_dir = Path("./run_logs")
+            # Use configurable log directory from config
+            core_config = CoreConfigManager()
+            log_dir = core_config.get_log_dir()
         log_dir.mkdir(parents=True, exist_ok=True)
 
         # Calculate optimal worker count based on collection size
@@ -1022,6 +1029,29 @@ def init_graph(
                 "status_code": None,
             }
             try:
+                # First check if a graph already exists
+                try:
+                    graph_check_response = retry_with_backoff(
+                        lambda: api_client.get(
+                            f"/vulnerability_records/{vulnID}/exploit-graph"
+                        )
+                    )
+                    # If the graph endpoint returns 200, a graph already exists
+                    if graph_check_response.status_code == 200:
+                        result["status"] = "skipped"
+                        result["error"] = "Graph already exists"
+                        return result
+                    # If 404, no graph exists - proceed with initialization
+                    # Other status codes are treated as errors, but we'll still try to initialize
+                except Exception as e:
+                    # If we can't check (network error, etc.), proceed with initialization attempt
+                    # (might be a network issue, but we'll try anyway)
+                    if verbose:
+                        console.print(
+                            f"[yellow]Warning: Could not check for existing "
+                            f"graph for {vulnID}: {e}[/yellow]"
+                        )
+
                 # POST to /vulnerability.../initialise-exploit-graph
                 response = retry_with_backoff(
                     lambda: api_client.post(
@@ -1053,6 +1083,7 @@ def init_graph(
         all_results = []
         total_success = 0
         total_failed = 0
+        total_skipped = 0
         processed_vuln_count = 0
 
         start_time = time.time()
@@ -1085,6 +1116,8 @@ def init_graph(
                         processed_vuln_count += 1
                         if result.get("status") == "success":
                             total_success += 1
+                        elif result.get("status") == "skipped":
+                            total_skipped += 1
                         else:
                             total_failed += 1
                     except Exception as exc:
@@ -1107,6 +1140,7 @@ def init_graph(
         console.print("\n--- Processing Summary ---")
         console.print(f"Processed {processed_vuln_count}/{total_vulns} vulnIDs.")
         console.print(f"Successful Triggers: {total_success}")
+        console.print(f"Skipped (graph exists): {total_skipped}")
         console.print(f"Failed Triggers:     {total_failed}")
         console.print(
             f"Total processing time: {duration:.2f} seconds ({rate:.2f} vulnIDs/sec)"
@@ -1126,6 +1160,7 @@ def init_graph(
                 "processed_vulnIDs": processed_vuln_count,
                 "total_vulnIDs_in_collection": total_vulns,
                 "total_success": total_success,
+                "total_skipped": total_skipped,
                 "total_failed": total_failed,
                 "processing_time_seconds": round(duration, 2),
                 "processing_rate_vulnIDs_per_sec": round(rate, 2),
@@ -1216,7 +1251,9 @@ def init_scdef(
 
         total_vulns = len(vuln_ids)
         if not log_dir:
-            log_dir = Path("./run_logs")
+            # Use configurable log directory from config
+            core_config = CoreConfigManager()
+            log_dir = core_config.get_log_dir()
         log_dir.mkdir(parents=True, exist_ok=True)
 
         # Calculate optimal worker count based on collection size
@@ -1432,7 +1469,9 @@ def refine_graph(
 
         total_vulns = len(vuln_ids)
         if not log_dir:
-            log_dir = Path("./run_logs")
+            # Use configurable log directory from config
+            core_config = CoreConfigManager()
+            log_dir = core_config.get_log_dir()
         log_dir.mkdir(parents=True, exist_ok=True)
 
         # Calculate optimal worker count based on collection size
@@ -1657,7 +1696,9 @@ def update_source(
 
         total_vulns = len(vuln_ids)
         if not log_dir:
-            log_dir = Path("./run_logs")
+            # Use configurable log directory from config
+            core_config = CoreConfigManager()
+            log_dir = core_config.get_log_dir()
         log_dir.mkdir(parents=True, exist_ok=True)
 
         # Calculate optimal worker count based on collection size
@@ -1965,6 +2006,282 @@ def links(
                         test_category,
                     )
 
+                console.print(table)
+
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code == 404:
+                    console.print(
+                        f"[italic grey]No data sources found for "
+                        f"{vuln_id}[/italic grey]"
+                    )
+                else:
+                    console.print(
+                        f"[bold red]Error fetching data for {vuln_id}: "
+                        f"{e.response.status_code}[/bold red]"
+                    )
+            except httpx.RequestError as e:
+                console.print(f"[bold red]Network error for {vuln_id}: {e}[/bold red]")
+
+    except AuthenticationError as e:
+        console.print(f"\n[bold red]API Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def show(
+    collection: Optional[str] = typer.Option(
+        None,
+        "--collection",
+        "-c",
+        help="Name of the collection file containing vulnerability IDs.",
+    ),
+    identifier: Optional[str] = typer.Option(
+        None, "--id", "-i", help="A single vulnerability ID or CVE ID to process."
+    ),
+):
+    """
+    Fetches and displays exploit graph, SCDEF, and data source links for vulnerabilities.
+    """
+    console = Console()
+    if not collection and not identifier:
+        console.print(
+            "[bold red]Error:[/bold red] Please provide either a --collection or an "
+            "--id."
+        )
+        raise typer.Exit(code=1)
+    if collection and identifier:
+        console.print(
+            "[bold red]Error:[/bold red] Options --collection and --id are mutually "
+            "exclusive."
+        )
+        raise typer.Exit(code=1)
+
+    try:
+        config_mgr = ConfigManager()
+        api_client = ApiClient()
+
+        if identifier:
+            resolved_ids = lookup_ids(identifier)
+            if resolved_ids:
+                identifiers = [resolved_ids]
+            else:
+                console.print(
+                    f"[bold red]Error:[/bold red] Could not resolve "
+                    f"identifier: {identifier}"
+                )
+                raise typer.Exit(code=1)
+        else:
+            identifiers = get_vuln_identifiers_from_collection(collection, config_mgr)
+
+        for item in identifiers:
+            vuln_id = item["vuln_id"]
+            cve_id = item.get("cve_id")
+
+            try:
+                # If CVE ID is not in the collection, fetch it from the API
+                if not cve_id:
+                    vuln_response = api_client.get(f"/vulnerability_records/{vuln_id}")
+                    vuln_data = vuln_response.json()
+                    cve_id = vuln_data.get("cve_id", "N/A")
+
+                # Fetch exploit graph information
+                graph_id = None
+                graph_created_at = None
+                graph_updated_at = None
+                exploit_graph = None
+                try:
+                    graph_response = api_client.get(
+                        f"/vulnerability_records/{vuln_id}/exploit-graph"
+                    )
+                    if graph_response.status_code == 200:
+                        graph_data = graph_response.json()
+                        # Check for exploitGraph array to determine if graph exists
+                        exploit_graph = graph_data.get("exploitGraph")
+                        graph_id = (
+                            graph_data.get("exploitGraphInstanceID")
+                            or graph_data.get("graphID")
+                            or graph_data.get("graph_id")
+                            or graph_data.get("id")
+                        )
+                        graph_created_at = (
+                            graph_data.get("graphCreatedTime")
+                            or graph_data.get("createdAt")
+                            or graph_data.get("created_at")
+                        )
+                        graph_updated_at = (
+                            graph_data.get("graphUpdatedTime")
+                            or graph_data.get("updatedAt")
+                            or graph_data.get("updated_at")
+                        )
+                except httpx.HTTPStatusError:
+                    # 404 or other HTTP errors - graph doesn't exist or error, continue
+                    pass
+                except Exception:
+                    # Other errors (network, etc.) - continue
+                    pass
+
+                # Fetch SCDEF information
+                scdefs = []
+                try:
+                    # Use the correct endpoint: /security-control-definitions (plural)
+                    scdef_response = api_client.get(
+                        f"/vulnerability_records/{vuln_id}/security-control-definitions"
+                    )
+                    if scdef_response.status_code == 200:
+                        scdef_data = scdef_response.json()
+                        # API returns an array of SCDEF objects
+                        if isinstance(scdef_data, list):
+                            scdefs = scdef_data
+                        elif isinstance(scdef_data, dict):
+                            # Handle case where it might be a single object wrapped
+                            scdefs = [scdef_data]
+                except httpx.HTTPStatusError:
+                    # 404 or other HTTP errors - SCDEFs don't exist or error, continue
+                    pass
+                except Exception:
+                    # Other errors (network, etc.) - continue
+                    pass
+
+                # Display graph and SCDEF information
+                console.print(f"\n[bold cyan]{cve_id} - {vuln_id}[/bold cyan]")
+
+                # Exploit Graph section
+                console.print("\n[bold]Exploit Graph:[/bold]")
+                if exploit_graph is not None and len(exploit_graph) > 0:
+                    if graph_id:
+                        console.print(f"  ID: {graph_id}")
+                    if graph_created_at:
+                        console.print(f"  Created at: {graph_created_at}")
+                    if graph_updated_at:
+                        console.print(f"  Updated at: {graph_updated_at}")
+                    console.print(f"  Vectors: {len(exploit_graph)}")
+                else:
+                    console.print("  [italic grey]No exploit graph found[/italic grey]")
+
+                # SCDEF section
+                console.print("\n[bold]Security Controls Definition:[/bold]")
+                if scdefs and len(scdefs) > 0:
+                    console.print(f"  Found {len(scdefs)} SCDEF(s)")
+                    # Display information about the first SCDEF (or all if there are few)
+                    for idx, scdef in enumerate(scdefs[:3], 1):  # Show first 3
+                        scdef_id = (
+                            scdef.get("scdefID")
+                            or scdef.get("scdef_id")
+                            or scdef.get("id")
+                        )
+                        scdef_created_at = (
+                            scdef.get("scdefCreatedTime")
+                            or scdef.get("createdAt")
+                            or scdef.get("created_at")
+                        )
+                        scdef_updated_at = (
+                            scdef.get("scdefUpdatedTime")
+                            or scdef.get("updatedAt")
+                            or scdef.get("updated_at")
+                        )
+                        if len(scdefs) > 1:
+                            console.print(f"\n  SCDEF {idx}:")
+                        if scdef_id:
+                            console.print(f"    ID: {scdef_id}")
+                        if scdef_created_at:
+                            console.print(f"    Created at: {scdef_created_at}")
+                        if scdef_updated_at:
+                            console.print(f"    Updated at: {scdef_updated_at}")
+                        # Show exploit vector ID if available
+                        exploit_vector_id = scdef.get("exploitVectorID")
+                        if exploit_vector_id:
+                            console.print(f"    Exploit Vector ID: {exploit_vector_id}")
+                    if len(scdefs) > 3:
+                        console.print(f"\n  ... and {len(scdefs) - 3} more SCDEF(s)")
+                else:
+                    console.print("  [italic grey]No SCDEF found[/italic grey]")
+
+                # Fetch data sources
+                response = api_client.get(
+                    f"/vulnerability_records/{vuln_id}/data_sources"
+                )
+
+                if response.status_code == 404:
+                    console.print(
+                        f"\n[italic grey]No data sources found for {cve_id} - "
+                        f"{vuln_id}[/italic grey]"
+                    )
+                    continue
+
+                response.raise_for_status()
+                data_sources = response.json()
+
+                if not data_sources:
+                    console.print(
+                        f"\n[italic grey]No data sources found for {cve_id} - "
+                        f"{vuln_id}[/italic grey]"
+                    )
+                    continue
+
+                # Sort data sources
+                data_sources.sort(key=lambda x: x.get("testCategory") != "webExploit")
+
+                table = Table(
+                    title=f"Data Sources for {cve_id} - {vuln_id}", show_lines=True
+                )
+                table.add_column("URL", style="cyan", no_wrap=False, width=45)
+                table.add_column("linkID", style="dim", no_wrap=True, width=38)
+                table.add_column("Scraped", style="green", width=10)
+                table.add_column("Size (KB)", style="magenta", justify="right")
+                table.add_column("Classified", style="blue", width=10)
+                table.add_column("Analysed", style="yellow", width=10)
+                table.add_column("Test Category", style="green", width=15)
+
+                for source in data_sources:
+                    url = source.get("url", "")
+                    link_id = source.get("linkID", "N/A")
+                    scraped_status = source.get("scrapedStatus", "")
+                    s3_file_size = source.get("s3FileSize")
+                    classifier_status = source.get("classifierStatus", "")
+                    analysed1_status = source.get("analysed1Status", "")
+                    test_category = source.get("testCategory", "")
+
+                    if scraped_status == "error":
+                        scraped_status = "[red]error[/red]"
+                    if classifier_status == "error":
+                        classifier_status = "[red]error[/red]"
+                    if analysed1_status == "error":
+                        analysed1_status = "[red]error[/red]"
+
+                    s3_file_size_kb = "N/A"
+                    if isinstance(s3_file_size, (int, float)) and s3_file_size > 0:
+                        s3_file_size_kb = f"{s3_file_size / 1024:.1f}"
+                    elif s3_file_size == 0:
+                        s3_file_size_kb = "0.0"
+
+                    style = ""
+                    if test_category == "webExploit":
+                        style = "bold red"
+                    elif test_category == "nonWebExploit":
+                        style = "bold amber"
+                    elif test_category == "Non-test":
+                        style = "bold grey"
+                    elif not test_category:
+                        if classifier_status in ("complete", "error"):
+                            style = "amber"
+                        elif scraped_status == "complete":
+                            style = "italic white"
+                        elif scraped_status == "error":
+                            style = "italic amber"
+                        else:
+                            style = "italic grey"
+
+                    table.add_row(
+                        f"[{style}]{url}[/{style}]",
+                        link_id,
+                        scraped_status,
+                        s3_file_size_kb,
+                        classifier_status,
+                        analysed1_status,
+                        test_category,
+                    )
+
+                console.print("\n")
                 console.print(table)
 
             except httpx.HTTPStatusError as e:

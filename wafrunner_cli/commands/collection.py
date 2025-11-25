@@ -1,7 +1,7 @@
 import typer
 from rich import print
 from rich.table import Table
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Tuple
 from pathlib import Path
 import json
 import glob
@@ -17,7 +17,7 @@ app = typer.Typer(help="Commands for managing local collections of vulnerabiliti
 
 
 # --- Helper Functions ---
-def validate_collection_data(data: Any, file_path: Path) -> (bool, Optional[str]):
+def validate_collection_data(data: Any, file_path: Path) -> Tuple[bool, Optional[str]]:
     """
     Validates the basic schema of a collection data object.
     Returns (is_valid, error_message).

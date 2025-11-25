@@ -29,6 +29,7 @@ def test_all_required_commands_present():
         "init-scdef",
         "update-source",
         "links",
+        "show",
     }
 
     missing = required - commands
