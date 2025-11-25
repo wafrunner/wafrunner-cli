@@ -23,6 +23,7 @@ from rich.table import Table
 from wafrunner_cli.core.api_client import ApiClient
 from wafrunner_cli.core.exceptions import AuthenticationError
 from wafrunner_cli.core.lookup_service import lookup_ids
+from wafrunner_cli.core.config_manager import ConfigManager as CoreConfigManager
 
 
 # --- Smart Concurrency Utilities ---
@@ -120,6 +121,8 @@ def create_worker_with_retry(api_client: ApiClient, max_retries: int = 3):
 
 
 # --- Config Manager (for data dir only) ---
+# Note: This is a local ConfigManager for backward compatibility
+# Consider migrating to wafrunner_cli.core.config_manager.ConfigManager
 class ConfigManager:
     def __init__(self):
         self._data_dir = Path.home() / ".wafrunner" / "data"
@@ -705,7 +708,9 @@ def classify(
         total_vulns = len(vuln_ids)
         mode_str = "Update" if update else "Retry" if retry else "Standard"
         if not log_dir:
-            log_dir = Path("./run_logs")
+            # Use configurable log directory from config
+            core_config = CoreConfigManager()
+            log_dir = core_config.get_log_dir()
         log_dir.mkdir(parents=True, exist_ok=True)
 
         # Calculate optimal worker count based on collection size
@@ -998,7 +1003,9 @@ def init_graph(
 
         total_vulns = len(vuln_ids)
         if not log_dir:
-            log_dir = Path("./run_logs")
+            # Use configurable log directory from config
+            core_config = CoreConfigManager()
+            log_dir = core_config.get_log_dir()
         log_dir.mkdir(parents=True, exist_ok=True)
 
         # Calculate optimal worker count based on collection size
@@ -1041,7 +1048,8 @@ def init_graph(
                     # (might be a network issue, but we'll try anyway)
                     if verbose:
                         console.print(
-                            f"[yellow]Warning: Could not check for existing graph for {vulnID}: {e}[/yellow]"
+                            f"[yellow]Warning: Could not check for existing "
+                            f"graph for {vulnID}: {e}[/yellow]"
                         )
 
                 # POST to /vulnerability.../initialise-exploit-graph
@@ -1243,7 +1251,9 @@ def init_scdef(
 
         total_vulns = len(vuln_ids)
         if not log_dir:
-            log_dir = Path("./run_logs")
+            # Use configurable log directory from config
+            core_config = CoreConfigManager()
+            log_dir = core_config.get_log_dir()
         log_dir.mkdir(parents=True, exist_ok=True)
 
         # Calculate optimal worker count based on collection size
@@ -1459,7 +1469,9 @@ def refine_graph(
 
         total_vulns = len(vuln_ids)
         if not log_dir:
-            log_dir = Path("./run_logs")
+            # Use configurable log directory from config
+            core_config = CoreConfigManager()
+            log_dir = core_config.get_log_dir()
         log_dir.mkdir(parents=True, exist_ok=True)
 
         # Calculate optimal worker count based on collection size
@@ -1684,7 +1696,9 @@ def update_source(
 
         total_vulns = len(vuln_ids)
         if not log_dir:
-            log_dir = Path("./run_logs")
+            # Use configurable log directory from config
+            core_config = CoreConfigManager()
+            log_dir = core_config.get_log_dir()
         log_dir.mkdir(parents=True, exist_ok=True)
 
         # Calculate optimal worker count based on collection size

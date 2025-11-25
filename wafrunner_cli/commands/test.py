@@ -17,10 +17,19 @@ from rich.table import Table
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-# Add forge to path for imports
-forge_path = Path(__file__).parent.parent.parent.parent / "forge" / "forge"
-if forge_path.exists():
-    sys.path.insert(0, str(forge_path.parent))
+from wafrunner_cli.core.config_manager import ConfigManager  # noqa: E402
+
+# Get forge path from config or environment
+config_manager = ConfigManager()
+forge_path = config_manager.get_forge_path()
+
+# Fallback to relative path for development (if not configured)
+if not forge_path:
+    forge_path = Path(__file__).parent.parent.parent.parent / "forge"
+
+# Add forge to path for imports if it exists
+if forge_path and forge_path.exists():
+    sys.path.insert(0, str(forge_path))
 
 from wafrunner_cli.core.api_client import ApiClient  # noqa: E402
 from wafrunner_cli.core.prerequisites import (  # noqa: E402
@@ -31,7 +40,7 @@ from wafrunner_cli.core.prerequisites import (  # noqa: E402
 
 # Try to import Forge loader
 try:
-    from forge.app.test_instance.loader import TestBundleLoader
+    from app.test_instance.loader import TestBundleLoader
 
     FORGE_AVAILABLE = True
 except ImportError as e:
@@ -50,8 +59,15 @@ def _check_forge_available():
     if not FORGE_AVAILABLE:
         print("[bold red]Error:[/bold red] Forge modules not available.")
         print(f"Import error: {IMPORT_ERROR}")
-        print("\n[yellow]Make sure the forge repository is available at:")
-        print(f"  {forge_path}[/yellow]")
+        print("\nMake sure the forge repository is available.")
+        if forge_path:
+            print(f"Configured path: {forge_path}")
+            if not forge_path.exists():
+                print("[yellow]Warning: Path does not exist[/yellow]")
+        else:
+            print("No forge path configured.")
+            print("Set it using: wafrunner configure --forge-path <path>")
+            print("Or set environment variable: WAFRUNNER_FORGE_PATH=<path>")
         raise typer.Exit(1)
 
 
@@ -96,6 +112,225 @@ def _load_test_status(test_id: str) -> Optional[Dict[str, Any]]:
         return None
     with open(status_file, "r") as f:
         return json.load(f)
+
+
+def _display_enhanced_analysis(console: Console, analysis: Dict[str, Any]) -> None:
+    """
+    Display enhanced analysis answering key questions about test execution.
+
+    Generic display that works for any vulnerability type and control.
+
+    Args:
+        console: Rich console instance
+        analysis: Analysis dictionary from generate_comprehensive_analysis
+    """
+    console.print("\n[bold cyan]Test Analysis Report[/bold cyan]")
+    console.print("=" * 70)
+
+    # Question 1: Vulnerability Detection
+    vuln_det = analysis.get("vulnerability_detection", {})
+    console.print(
+        "\n[bold]1. Is the test endpoint adequately functioning to "
+        "simulate the vulnerability?[/bold]"
+    )
+    if vuln_det.get("vulnerability_detected"):
+        console.print(
+            f"  ✅ [green]YES[/green] - {vuln_det.get('message', 'Vulnerability detected')}"
+        )
+        console.print(
+            f"     Confidence: {vuln_det.get('confidence', 'unknown').upper()}"
+        )
+        details = vuln_det.get("details", {})
+        if details:
+            vuln_detected = details.get("vulnerabilities_detected", 0)
+            vuln_total = details.get("total_tests", 0)
+            console.print(
+                f"     • Vulnerabilities detected: {vuln_detected}/{vuln_total}"
+            )
+            console.print(
+                f"     • Detection rate: {vuln_det.get('detection_rate', 0)}%"
+            )
+
+        # Show breakdown by vulnerability type
+        by_type = vuln_det.get("by_type", {})
+        if by_type:
+            console.print("     • By type:")
+            for vuln_type, type_data in by_type.items():
+                detected = type_data.get("detected", 0)
+                total = type_data.get("total", 0)
+                console.print(f"       - {vuln_type}: {detected}/{total} detected")
+    else:
+        console.print(
+            f"  ❌ [red]NO[/red] - {vuln_det.get('message', 'Vulnerability not detected')}"
+        )
+        console.print(
+            f"     Confidence: {vuln_det.get('confidence', 'unknown').upper()}"
+        )
+
+    # Question 2: Control Effectiveness
+    control_eff = analysis.get("control_effectiveness", {})
+    console.print(
+        "\n[bold]2. With controls active, is the vulnerability adequately addressed?[/bold]"
+    )
+
+    # Determine control mode (blocking vs detection)
+    control_mode = control_eff.get("control_mode", "blocking")
+    waf_mode = control_eff.get("waf_mode", "unknown")
+    is_detection_mode = control_mode == "detection" or waf_mode == "detection"
+
+    if control_eff.get("controls_effective"):
+        console.print(
+            f"  ✅ [green]YES[/green] - {control_eff.get('message', 'Controls effective')}"
+        )
+        console.print(
+            f"     Confidence: {control_eff.get('confidence', 'unknown').upper()}"
+        )
+        details = control_eff.get("details", {})
+        if details:
+            controls_detected = details.get("controls_detected", [])
+            if controls_detected:
+                console.print(
+                    f"     • Controls detected: {', '.join(controls_detected)}"
+                )
+
+            # Show WAF mode if applicable
+            if waf_mode != "unknown":
+                mode_display = (
+                    "🔍 Detection/Logging" if waf_mode == "detection" else "🛡️ Blocking"
+                )
+                console.print(f"     • WAF mode: {mode_display}")
+
+            if is_detection_mode:
+                # In detection mode, show detections instead of blocks
+                waf_detections = control_eff.get("waf_detections", 0)
+                console.print(
+                    f"     • Attacks detected: {waf_detections} detections logged"
+                )
+                if control_eff.get("waf_detections", 0) > 0:
+                    console.print(
+                        "     • Note: WAF is in detection mode (logging, not blocking)"
+                    )
+            else:
+                # In blocking mode, show blocks
+                blocked = control_eff.get("blocked_count", 0)
+                total_vuln = control_eff.get("total_vuln_tests", 0)
+                block_rate = control_eff.get("block_rate", 0)
+                console.print(
+                    f"     • Attacks blocked: {blocked}/{total_vuln} ({block_rate}%)"
+                )
+                bypassed = control_eff.get("bypassed_count", 0)
+                bypass_rate = control_eff.get("bypass_rate", 0)
+                console.print(f"     • Attacks bypassed: {bypassed} ({bypass_rate}%)")
+    else:
+        msg = control_eff.get("message", "Controls partially effective")
+        console.print(f"  ⚠️  [yellow]PARTIAL[/yellow] - {msg}")
+        console.print(
+            f"     Confidence: {control_eff.get('confidence', 'unknown').upper()}"
+        )
+        details = control_eff.get("details", {})
+        if details:
+            controls_detected = details.get("controls_detected", [])
+            if controls_detected:
+                console.print(
+                    f"     • Controls detected: {', '.join(controls_detected)}"
+                )
+
+            # Show WAF mode if applicable
+            if waf_mode != "unknown":
+                mode_display = (
+                    "🔍 Detection/Logging" if waf_mode == "detection" else "🛡️ Blocking"
+                )
+                console.print(f"     • WAF mode: {mode_display}")
+
+            if is_detection_mode:
+                waf_det = control_eff.get("waf_detections", 0)
+                console.print(f"     • Attacks detected: {waf_det} detections logged")
+            else:
+                console.print(f"     • Block rate: {control_eff.get('block_rate', 0)}%")
+                console.print(
+                    f"     • Bypass rate: {control_eff.get('bypass_rate', 0)}%"
+                )
+
+    # Question 3: Baseline Requests
+    baseline = analysis.get("baseline_requests", {})
+    console.print(
+        "\n[bold]3. Do non-malicious requests all get through with no problems?[/bold]"
+    )
+    if baseline.get("all_passed"):
+        console.print(
+            f"  ✅ [green]YES[/green] - {baseline.get('message', 'All requests passed')}"
+        )
+        console.print(
+            f"     Confidence: {baseline.get('confidence', 'unknown').upper()}"
+        )
+    else:
+        console.print(
+            f"  ⚠️  [yellow]PARTIAL[/yellow] - {baseline.get('message', 'Some requests failed')}"
+        )
+        console.print(
+            f"     Confidence: {baseline.get('confidence', 'unknown').upper()}"
+        )
+        details = baseline.get("details", {})
+        if details:
+            console.print(f"     • Pass rate: {baseline.get('pass_rate', 0)}%")
+            successful = details.get("successful_requests", 0)
+            total_req = details.get("total_requests", 0)
+            console.print(f"     • Passed: {successful}/{total_req}")
+            if details.get("blocked_requests", 0) > 0:
+                console.print(f"     • Blocked: {details.get('blocked_requests', 0)}")
+            if details.get("error_requests", 0) > 0:
+                console.print(f"     • Errors: {details.get('error_requests', 0)}")
+
+    # Question 4: System Health
+    sys_health = analysis.get("system_health", {})
+    console.print(
+        "\n[bold]4. Do controls, client tests, and test endpoints all function correctly?[/bold]"
+    )
+    if sys_health.get("system_healthy"):
+        console.print(
+            f"  ✅ [green]YES[/green] - {sys_health.get('message', 'System healthy')}"
+        )
+        console.print(
+            f"     Confidence: {sys_health.get('confidence', 'unknown').upper()}"
+        )
+    else:
+        console.print(
+            f"  ❌ [red]NO[/red] - {sys_health.get('message', 'System issues detected')}"
+        )
+        console.print(
+            f"     Confidence: {sys_health.get('confidence', 'unknown').upper()}"
+        )
+        if sys_health.get("errors"):
+            console.print("     Errors:")
+            for error in sys_health["errors"]:
+                console.print(f"       • {error}")
+        if sys_health.get("warnings"):
+            console.print("     Warnings:")
+            for warning in sys_health["warnings"][:5]:  # Limit to 5 warnings
+                console.print(f"       • {warning}")
+
+    # Overall Assessment
+    console.print("\n[bold]Overall Assessment:[/bold]")
+    if analysis.get("overall_success"):
+        console.print("  ✅ [bold green]TEST PASSED - All criteria met[/bold green]")
+    else:
+        console.print(
+            "  ⚠️  [bold yellow]TEST PARTIAL - Some criteria not met[/bold yellow]"
+        )
+
+    # Categories summary
+    categories = analysis.get("categories", {})
+    if categories:
+        console.print("\n[dim]Test Categories:[/dim]")
+        console.print(
+            f"  • Vulnerability Detection: {categories.get('vulnerability_detection_count', 0)}"
+        )
+        console.print(
+            f"  • Control Verification: {categories.get('control_verification_count', 0)}"
+        )
+        console.print(f"  • Baseline: {categories.get('baseline_count', 0)}")
+        if categories.get("other_count", 0) > 0:
+            console.print(f"  • Other: {categories.get('other_count', 0)}")
 
 
 @app.command()
@@ -203,6 +438,10 @@ def run(
             console.print("  ✅ Results uploaded to API")
         else:
             console.print("  ⚠️  Results not uploaded")
+
+        # Display enhanced analysis if available
+        if result.get("analysis"):
+            _display_enhanced_analysis(console, result["analysis"])
 
         # Exit with appropriate code
         if result["status"] == "completed" and result["exit_code"] == 0:
@@ -351,15 +590,31 @@ def list(
 
 @app.command()
 def stop(
-    test_id: str = typer.Argument(..., help="Test execution ID"),
+    test_id: Optional[str] = typer.Option(
+        None, "--test-id", "-t", help="Test execution ID (defaults to most recent)"
+    ),
 ):
     """
     Stop a running test execution.
 
     Stops Docker containers and updates status.
+
+    If --test-id is not provided, stops the most recent test.
     """
     _check_forge_available()
     console = Console()
+
+    # Find test_id if not provided
+    if not test_id:
+        # Get most recent status file
+        status_files = sorted(
+            STATUS_DIR.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True
+        )
+        if not status_files:
+            console.print("[yellow]No test executions found.[/yellow]")
+            raise typer.Exit(1)
+        test_id = status_files[0].stem
+        console.print(f"[dim]Stopping most recent test: {test_id}[/dim]\n")
 
     # Load status
     status_data = _load_test_status(test_id)
@@ -374,7 +629,7 @@ def stop(
 
     # Stop containers
     try:
-        from forge.app.test_instance.docker_executor import stop_containers
+        from app.test_instance.docker_executor import stop_containers
 
         console.print(f"[cyan]Stopping containers for test {test_id}...[/cyan]")
         stop_containers(workspace)
@@ -392,22 +647,42 @@ def stop(
 
 @app.command()
 def logs(
-    test_id: str = typer.Argument(..., help="Test execution ID"),
+    test_id: Optional[str] = typer.Option(
+        None, "--test-id", "-t", help="Test execution ID (defaults to most recent)"
+    ),
     component: Optional[str] = typer.Option(
         None,
         "--component",
         help="Specific component (forge-endpoint, edge, waf, nuclei)",
     ),
     follow: bool = typer.Option(False, "--follow", "-f", help="Follow log output"),
-    tail: int = typer.Option(100, "--tail", help="Number of lines to show"),
+    tail: Optional[int] = typer.Option(
+        50,
+        "--tail",
+        help="Number of lines to show (default: 50). Omit value to use default.",
+    ),
 ):
     """
     View logs from a test execution.
 
     Shows logs from Docker containers or from workspace if test is completed.
+
+    If --test-id is not provided, shows logs from the most recent test.
     """
     _check_forge_available()
     console = Console()
+
+    # Find test_id if not provided
+    if not test_id:
+        # Get most recent status file
+        status_files = sorted(
+            STATUS_DIR.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True
+        )
+        if not status_files:
+            console.print("[yellow]No test executions found.[/yellow]")
+            raise typer.Exit(1)
+        test_id = status_files[0].stem
+        console.print(f"[dim]Using most recent test: {test_id}[/dim]\n")
 
     # Load status
     status_data = _load_test_status(test_id)
@@ -421,7 +696,7 @@ def logs(
         raise typer.Exit(1)
 
     try:
-        from forge.app.test_instance.docker_executor import get_container_logs
+        from app.test_instance.docker_executor import get_container_logs
 
         # Get logs
         logs = get_container_logs(test_id, component)
@@ -437,8 +712,9 @@ def logs(
 
             console.print(f"\n[bold cyan]=== {comp} logs ===[/bold cyan]")
             lines = log_content.split("\n")
-            if len(lines) > tail:
-                lines = lines[-tail:]
+            tail_lines = tail if tail is not None else 50  # Use default if None
+            if len(lines) > tail_lines:
+                lines = lines[-tail_lines:]
             console.print("\n".join(lines))
 
     except Exception as e:

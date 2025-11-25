@@ -185,7 +185,7 @@ def detect_system_resources() -> Dict[str, Any]:
     }
 
 
-def check_system_resources() -> Tuple[bool, Dict[str, any]]:
+def check_system_resources() -> Tuple[bool, Dict[str, Any]]:
     """
     Check if system has sufficient resources.
 
