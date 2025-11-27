@@ -243,7 +243,8 @@ class TestResearchCommands(unittest.TestCase):
         )
 
     @patch("wafrunner_cli.commands.research.lookup_ids")
-    def test_init_scdef_with_invalid_id(self, mock_lookup_ids):
+    @patch("wafrunner_cli.commands.research.ApiClient")
+    def test_init_scdef_with_invalid_id(self, MockApiClient, mock_lookup_ids):
         # Mock the lookup service to return None
         mock_lookup_ids.return_value = None
 
