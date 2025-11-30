@@ -353,6 +353,12 @@ def run(
     verbose: bool = typer.Option(
         False, "--verbose", "-v", help="Enable verbose logging"
     ),
+    passive: bool = typer.Option(
+        False, "--passive", "-p", help="Run tests in passive mode (detection only)"
+    ),
+    active: bool = typer.Option(
+        False, "--active", "-a", help="Run tests in active mode (blocking) - default"
+    ),
 ):
     """
     Run a test execution for a vulnerability record.
@@ -363,6 +369,19 @@ def run(
     _check_forge_available()
 
     console = Console()
+
+    # Determine test mode
+    if passive and active:
+        console.print(
+            "[bold red]Error: Cannot specify both --passive and --active[/bold red]"
+        )
+        raise typer.Exit(1)
+
+    test_mode = (
+        "passive" if passive else "active"
+    )  # Default to active if neither specified
+    mode_display = "🔍 Detection/Logging" if test_mode == "passive" else "🛡️ Blocking"
+    console.print(f"\n[bold cyan]Test Mode:[/bold cyan] {mode_display}")
 
     # Check prerequisites
     console.print("\n[bold cyan]Checking prerequisites...[/bold cyan]")
@@ -418,6 +437,7 @@ def run(
                 resource_limits=resources,
                 keep_containers=keep_containers,
                 upload_results=not no_upload,
+                test_mode=test_mode,
             )
 
             progress.update(task, completed=True)
