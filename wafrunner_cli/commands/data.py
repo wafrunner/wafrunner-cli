@@ -27,7 +27,10 @@ from wafrunner_cli.commands.research import (
     retry_with_backoff,
 )
 
-app = typer.Typer(help="Commands for downloading and managing research artifacts.")
+app = typer.Typer(
+    help="Commands for downloading and managing research artifacts.",
+    no_args_is_help=True,
+)
 
 
 @app.command("get-graph")

@@ -47,7 +47,10 @@ except ImportError as e:
     FORGE_AVAILABLE = False
     IMPORT_ERROR = str(e)
 
-app = typer.Typer(help="Commands for executing and managing Forge test runs.")
+app = typer.Typer(
+    help="Commands for executing and managing Forge test runs.",
+    no_args_is_help=True,
+)
 
 # Status tracking directory
 STATUS_DIR = Path.home() / ".wafrunner" / "test-status"

@@ -13,7 +13,10 @@ from wafrunner_cli.core.lookup_service import lookup_ids
 DEFAULT_DATA_DIR = Path.home() / ".wafrunner"
 COLLECTIONS_DIR = DEFAULT_DATA_DIR / "data" / "collections"
 
-app = typer.Typer(help="Commands for managing local collections of vulnerabilities.")
+app = typer.Typer(
+    help="Commands for managing local collections of vulnerabilities.",
+    no_args_is_help=True,
+)
 
 
 # --- Helper Functions ---
