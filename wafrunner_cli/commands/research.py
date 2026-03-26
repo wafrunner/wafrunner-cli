@@ -228,6 +228,7 @@ app = typer.Typer(
 
 @app.command()
 def github(
+    ctx: typer.Context,
     collection: Optional[str] = typer.Option(
         None,
         "--collection",
@@ -252,11 +253,8 @@ def github(
     """Trigger GitHub searches for vulnerabilities from a collection or a single ID."""
     console = Console()
     if not collection and not identifier:
-        console.print(
-            "[bold red]Error:[/bold red] Please provide either a --collection or an "
-            "--id."
-        )
-        raise typer.Exit(code=1)
+        console.print(ctx.get_help())
+        raise typer.Exit()
     if collection and identifier:
         console.print(
             "[bold red]Error:[/bold red] Options --collection and --id are mutually "
@@ -435,6 +433,7 @@ def github(
 
 @app.command()
 def scrape(
+    ctx: typer.Context,
     collection: Optional[str] = typer.Option(
         None,
         "--collection",
@@ -451,11 +450,8 @@ def scrape(
     """Trigger scrapes for data sources associated with vulnerabilities."""
     console = Console()
     if not collection and not identifier:
-        console.print(
-            "[bold red]Error:[/bold red] Please provide either a --collection or an "
-            "--id."
-        )
-        raise typer.Exit(code=1)
+        console.print(ctx.get_help())
+        raise typer.Exit()
     if collection and identifier:
         console.print(
             "[bold red]Error:[/bold red] Options --collection and --id are mutually "
@@ -633,6 +629,7 @@ def scrape(
 
 @app.command()
 def classify(
+    ctx: typer.Context,
     collection: Optional[str] = typer.Option(
         None,
         "--collection",
@@ -670,11 +667,8 @@ def classify(
     """
     console = Console()
     if not collection and not identifier:
-        console.print(
-            "[bold red]Error:[/bold red] Please provide either a --collection or an "
-            "--id."
-        )
-        raise typer.Exit(code=1)
+        console.print(ctx.get_help())
+        raise typer.Exit()
     if collection and identifier:
         console.print(
             "[bold red]Error:[/bold red] Options --collection and --id are mutually "
@@ -944,6 +938,7 @@ def classify(
 
 @app.command("init-graph")
 def init_graph(
+    ctx: typer.Context,
     collection: Optional[str] = typer.Option(
         None,
         "--collection",
@@ -972,11 +967,8 @@ def init_graph(
     """
     console = Console()
     if not collection and not identifier:
-        console.print(
-            "[bold red]Error:[/bold red] Please provide either a --collection or an "
-            "--id."
-        )
-        raise typer.Exit(code=1)
+        console.print(ctx.get_help())
+        raise typer.Exit()
     if collection and identifier:
         console.print(
             "[bold red]Error:[/bold red] Options --collection and --id are mutually "
@@ -1189,6 +1181,7 @@ def init_graph(
 
 @app.command("init-scdef")
 def init_scdef(
+    ctx: typer.Context,
     collection: Optional[str] = typer.Option(
         None,
         "--collection",
@@ -1220,11 +1213,8 @@ def init_scdef(
     """
     console = Console()
     if not collection and not identifier:
-        console.print(
-            "[bold red]Error:[/bold red] Please provide either a --collection or an "
-            "--id."
-        )
-        raise typer.Exit(code=1)
+        console.print(ctx.get_help())
+        raise typer.Exit()
     if collection and identifier:
         console.print(
             "[bold red]Error:[/bold red] Options --collection and --id are mutually "
@@ -1410,6 +1400,7 @@ def init_scdef(
 
 @app.command("refine-graph")
 def refine_graph(
+    ctx: typer.Context,
     collection: Optional[str] = typer.Option(
         None,
         "--collection",
@@ -1438,11 +1429,8 @@ def refine_graph(
     """
     console = Console()
     if not collection and not identifier:
-        console.print(
-            "[bold red]Error:[/bold red] Please provide either a --collection or an "
-            "--id."
-        )
-        raise typer.Exit(code=1)
+        console.print(ctx.get_help())
+        raise typer.Exit()
     if collection and identifier:
         console.print(
             "[bold red]Error:[/bold red] Options --collection and --id are mutually "
@@ -1627,6 +1615,7 @@ def refine_graph(
 
 @app.command("update-source")
 def update_source(
+    ctx: typer.Context,
     collection: Optional[str] = typer.Option(
         None,
         "--collection",
@@ -1664,11 +1653,8 @@ def update_source(
     """
     console = Console()
     if not collection and not identifier:
-        console.print(
-            "[bold red]Error:[/bold red] Please provide either a --collection or an "
-            "--id."
-        )
-        raise typer.Exit(code=1)
+        console.print(ctx.get_help())
+        raise typer.Exit()
     if collection and identifier:
         console.print(
             "[bold red]Error:[/bold red] Options --collection and --id are mutually "
@@ -1866,6 +1852,7 @@ def update_source(
 
 @app.command()
 def links(
+    ctx: typer.Context,
     collection: Optional[str] = typer.Option(
         None,
         "--collection",
@@ -1881,11 +1868,8 @@ def links(
     """
     console = Console()
     if not collection and not identifier:
-        console.print(
-            "[bold red]Error:[/bold red] Please provide either a --collection or an "
-            "--id."
-        )
-        raise typer.Exit(code=1)
+        console.print(ctx.get_help())
+        raise typer.Exit()
     if collection and identifier:
         console.print(
             "[bold red]Error:[/bold red] Options --collection and --id are mutually "
@@ -2029,6 +2013,7 @@ def links(
 
 @app.command()
 def show(
+    ctx: typer.Context,
     collection: Optional[str] = typer.Option(
         None,
         "--collection",
@@ -2044,11 +2029,8 @@ def show(
     """
     console = Console()
     if not collection and not identifier:
-        console.print(
-            "[bold red]Error:[/bold red] Please provide either a --collection or an "
-            "--id."
-        )
-        raise typer.Exit(code=1)
+        console.print(ctx.get_help())
+        raise typer.Exit()
     if collection and identifier:
         console.print(
             "[bold red]Error:[/bold red] Options --collection and --id are mutually "

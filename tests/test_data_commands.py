@@ -32,8 +32,9 @@ class TestGetGraph(unittest.TestCase):
 
     def test_requires_collection_or_id(self):
         result = self.runner.invoke(app, ["data", "get-graph"])
-        self.assertEqual(result.exit_code, 1)
-        self.assertIn("Please provide either", result.stdout)
+        self.assertEqual(result.exit_code, 0)
+        self.assertIn("--collection", result.stdout)
+        self.assertIn("--id", result.stdout)
 
     def test_collection_and_id_mutually_exclusive(self):
         result = self.runner.invoke(

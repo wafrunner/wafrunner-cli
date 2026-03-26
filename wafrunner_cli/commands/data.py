@@ -35,6 +35,7 @@ app = typer.Typer(
 
 @app.command("get-graph")
 def get_graph(
+    ctx: typer.Context,
     collection: Optional[str] = typer.Option(
         None,
         "--collection",
@@ -79,11 +80,8 @@ def get_graph(
     console = Console()
 
     if not collection and not identifier:
-        console.print(
-            "[bold red]Error:[/bold red] Please provide either a --collection or an "
-            "--id."
-        )
-        raise typer.Exit(code=1)
+        console.print(ctx.get_help())
+        raise typer.Exit()
     if collection and identifier:
         console.print(
             "[bold red]Error:[/bold red] Options --collection and --id are mutually "
