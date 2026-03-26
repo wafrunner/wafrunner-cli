@@ -117,8 +117,15 @@ def get_graph(
         total_vulns = len(identifiers_list)
 
         # Create output directory
-        output_dir = output_dir.resolve()
-        output_dir.mkdir(parents=True, exist_ok=True)
+        output_dir = output_dir.expanduser().resolve()
+        try:
+            output_dir.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            console.print(
+                f"[bold red]Error:[/bold red] Could not create output directory "
+                f"'{output_dir}': {e.strerror}"
+            )
+            raise typer.Exit(code=1)
 
         # Calculate optimal worker count
         optimal_workers = calculate_optimal_workers(total_vulns, max_workers)
