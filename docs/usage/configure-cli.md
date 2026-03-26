@@ -1,25 +1,47 @@
 # Configuring the CLI
 
-The `configure` command group allows you to manage the settings for `wafrunner-cli`.
+The `configure` command sets up credentials and paths used by `wafrunner-cli`.
 
-## Setting Your API Key
+## Setting Your API Token
 
-The most important configuration is setting your API key, which is required to authenticate with the wafrunner platform.
-
-### Interactive Prompt
-
-The easiest way to set your key is to run the command without any arguments. You will be prompted to enter your key securely:
+Run `configure` with no arguments to be prompted for your API token:
 
 ```sh
-wafrunner configure set-api-key
+wafrunner configure
 ```
 
-The CLI will hide your input for security.
+The token is stored locally and used to authenticate all API requests.
 
-### Non-Interactive (via Option)
+## Setting the Forge Path
 
-You can also provide the key directly as an option. This is useful for scripting and automated environments.
+If you have the Forge test framework installed locally, point the CLI to it:
 
 ```sh
-wafrunner configure set-api-key --api-key YOUR_SECRET_API_KEY
+wafrunner configure --forge-path /path/to/forge
 ```
+
+This is required for `wafrunner test` commands.
+
+## Setting the Log Directory
+
+Research commands write detailed JSON logs after each run. By default these go to `~/.wafrunner/logs`, but you can change the location:
+
+```sh
+wafrunner configure --log-dir /path/to/logs
+```
+
+## Options
+
+| Option | Description |
+|---|---|
+| *(no options)* | Prompts for API token |
+| `--forge-path` | Path to the Forge repository |
+| `--log-dir` | Directory for log files (default: `~/.wafrunner/logs`) |
+
+You can set multiple options at once:
+
+```sh
+wafrunner configure --forge-path /opt/forge --log-dir /var/log/wafrunner
+```
+
+When options are provided, the API token prompt is skipped.

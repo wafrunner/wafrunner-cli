@@ -37,7 +37,6 @@ nav:
     - Usage:
         - Basic Commands: usage/basic-commands.md
         - Configure CLI: usage/configure-cli.md
-        - CVE Commands: usage/cve-commands.md
         - Data Commands: usage/data-commands.md
         - Research Commands: usage/research-commands.md
         - Collection Commands: usage/collection-commands.md
