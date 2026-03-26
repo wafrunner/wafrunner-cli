@@ -40,6 +40,7 @@ All commands accept `--collection/-c` or `--id/-i`.
 | Command | Description |
 |---|---|
 | `data get-graph` | Download exploit graphs to local JSON files |
+| `data get-schema` | Fetch the exploit graph JSON schema |
 | `data get-controls` | Download security controls *(placeholder)* |
 
 ## `test` — Forge Test Execution

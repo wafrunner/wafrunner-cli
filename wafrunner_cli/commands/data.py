@@ -344,3 +344,55 @@ def get_controls(
     console.print(
         f"Placeholder for 'data get-controls' with vulnid: {vulnid}, cve_id: {cve_id}"
     )
+
+
+@app.command("get-schema")
+def get_schema(
+    output: Optional[Path] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Save schema to a file instead of printing to stdout.",
+    ),
+):
+    """
+    Fetch the exploit graph JSON schema.
+    """
+    console = Console()
+    try:
+        api_client = ApiClient()
+        response = retry_with_backoff(
+            lambda: api_client.get("/schemas/exploit-graph")
+        )
+
+        if response.status_code == 404:
+            console.print(
+                "[bold red]Error:[/bold red] Schema not found at "
+                "/schemas/exploit-graph"
+            )
+            raise typer.Exit(code=1)
+
+        response.raise_for_status()
+        schema_data = response.json()
+
+        if output:
+            output = output.expanduser().resolve()
+            try:
+                output.parent.mkdir(parents=True, exist_ok=True)
+                with open(output, "w", encoding="utf-8") as f:
+                    json.dump(schema_data, f, indent=2)
+                console.print(f"[green]Schema saved to {output}[/green]")
+            except OSError as e:
+                console.print(
+                    f"[bold red]Error:[/bold red] Could not write to "
+                    f"'{output}': {e.strerror}"
+                )
+                raise typer.Exit(code=1)
+        else:
+            console.print_json(json.dumps(schema_data))
+
+    except AuthenticationError as e:
+        console.print(f"\n[bold red]API Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+    except httpx.RequestError:
+        raise typer.Exit(code=1)

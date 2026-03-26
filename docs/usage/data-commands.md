@@ -99,6 +99,32 @@ cat ./exploit-graphs/CVE-2021-44228.json | jq '.exploitGraph | length'
 
 ---
 
+## `get-schema` — Fetch Exploit Graph Schema
+
+Downloads the JSON schema that defines the structure of exploit graphs. Useful for validating graph data or understanding the expected format.
+
+### Usage
+
+Print the schema to stdout (syntax-highlighted):
+
+```sh
+wafrunner data get-schema
+```
+
+Save the schema to a file:
+
+```sh
+wafrunner data get-schema -o exploit-graph-schema.json
+```
+
+### Options
+
+| Option | Short | Description |
+|---|---|---|
+| `--output` | `-o` | Save schema to a file instead of printing to stdout |
+
+---
+
 ## `get-controls` — Download Security Controls
 
 ```sh

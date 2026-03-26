@@ -21,7 +21,7 @@ class TestDataCommandsPresent(unittest.TestCase):
                 all_commands.append(cmd.callback.__name__)
 
         commands = set(all_commands)
-        required = {"get-graph", "get-controls"}
+        required = {"get-graph", "get-schema", "get-controls"}
         missing = required - commands
         self.assertFalse(missing, f"Missing required data commands: {missing}")
 
@@ -248,6 +248,58 @@ class TestGetGraph(unittest.TestCase):
             )
             self.assertEqual(result.exit_code, 0, result.stdout)
             self.assertTrue(Path("my-graphs/CVE-2024-1234.json").exists())
+
+
+class TestGetSchema(unittest.TestCase):
+
+    runner = CliRunner()
+
+    @patch("wafrunner_cli.commands.data.retry_with_backoff")
+    @patch("wafrunner_cli.commands.data.ApiClient")
+    def test_get_schema_stdout(self, MockApiClient, mock_retry):
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "type": "object",
+            "properties": {"exploitGraph": {"type": "array"}},
+        }
+        mock_retry.return_value = mock_response
+
+        result = self.runner.invoke(app, ["data", "get-schema"])
+        self.assertEqual(result.exit_code, 0, result.stdout)
+        self.assertIn("exploitGraph", result.stdout)
+
+    @patch("wafrunner_cli.commands.data.retry_with_backoff")
+    @patch("wafrunner_cli.commands.data.ApiClient")
+    def test_get_schema_save_to_file(self, MockApiClient, mock_retry):
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "type": "object",
+            "properties": {"exploitGraph": {"type": "array"}},
+        }
+        mock_retry.return_value = mock_response
+
+        with self.runner.isolated_filesystem():
+            result = self.runner.invoke(
+                app, ["data", "get-schema", "-o", "schema.json"]
+            )
+            self.assertEqual(result.exit_code, 0, result.stdout)
+            self.assertIn("Schema saved to", result.stdout)
+            self.assertTrue(Path("schema.json").exists())
+            data = json.loads(Path("schema.json").read_text())
+            self.assertEqual(data["type"], "object")
+
+    @patch("wafrunner_cli.commands.data.retry_with_backoff")
+    @patch("wafrunner_cli.commands.data.ApiClient")
+    def test_get_schema_not_found(self, MockApiClient, mock_retry):
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+        mock_retry.return_value = mock_response
+
+        result = self.runner.invoke(app, ["data", "get-schema"])
+        self.assertEqual(result.exit_code, 1)
+        self.assertIn("Schema not found", result.stdout)
 
 
 if __name__ == "__main__":
